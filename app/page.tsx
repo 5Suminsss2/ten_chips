@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Box, ChevronLeft, Heart, Home, Menu, Pause, Play, Search, SkipBack, SkipForward, UserRound } from "lucide-react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { Box, Check, ChevronLeft, Heart, Home, Lock, LogOut, Menu, Pause, Pencil, Play, RotateCcw, Search, SkipBack, SkipForward, UserRound, X } from "lucide-react";
 
 type Track = { title: string; artist: string; tags: string[]; note: string };
 const tracks: Track[] = [
@@ -13,8 +13,181 @@ const tracks: Track[] = [
 const archive = ["leaf", "mountain", "moon", "house", "tree", "cat", "globe", "bird", "flower", "wave"];
 const boxTracklist = ["La Llorona", "Sunset in Accra", "Paper Moon", "The Quiet Market", "Midnight Market", "Third Culture", "Neon Prayer", "Salt Flats", "Kintsugi", "The Same Sky"];
 const tracklistFor = (day: number) => boxTracklist.map((_, i) => boxTracklist[(i + day) % boxTracklist.length]);
+const TRACKS_PER_BOX = 10;
+const dateLabel = (day: number) => `${String(day + 1).padStart(2, "0")} SEP`;
+
+/* ---------- 관리자 모드 (prototype: 클라이언트 전용, localStorage 저장) ---------- */
+const ADMIN_PASSCODE = "admin";
+const LS_ADMIN = "tt-admin-mode";
+const LS_LISTS = "tt-custom-tracklists";
+type CustomLists = Record<number, string[]>; // key: 0-indexed day, value: 10곡 제목
+
+type AdminValue = {
+  isAdmin: boolean;
+  signIn: (code: string) => boolean;
+  signOut: () => void;
+  custom: CustomLists;
+  saveList: (day: number, titles: string[]) => void;
+  clearList: (day: number) => void;
+};
+const AdminContext = createContext<AdminValue | null>(null);
+const useAdmin = () => {
+  const ctx = useContext(AdminContext);
+  if (!ctx) throw new Error("useAdmin must be used within <AdminProvider>");
+  return ctx;
+};
+const resolveTracklist = (day: number, custom: CustomLists) => {
+  const saved = custom[day];
+  if (saved && saved.some((t) => t.trim())) return saved.map((t, i) => t.trim() || tracklistFor(day)[i]);
+  return tracklistFor(day);
+};
+
+function AdminProvider({ children }: { children: React.ReactNode }) {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [custom, setCustom] = useState<CustomLists>({});
+
+  // SSR 후 마운트 시 localStorage에서 1회 복원 (하이드레이션 불일치 방지를 위해 effect에서 수행)
+  useEffect(() => {
+    let storedAdmin = false;
+    let storedLists: CustomLists = {};
+    try {
+      storedAdmin = localStorage.getItem(LS_ADMIN) === "1";
+      const raw = localStorage.getItem(LS_LISTS);
+      if (raw) storedLists = JSON.parse(raw) as CustomLists;
+    } catch {
+      /* localStorage 사용 불가 — 기본값 유지 */
+    }
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- 외부 저장소(localStorage)에서 1회 초기 동기화 */
+    setIsAdmin(storedAdmin);
+    setCustom(storedLists);
+  }, []);
+
+  const signIn = (code: string) => {
+    if (code.trim() !== ADMIN_PASSCODE) return false;
+    setIsAdmin(true);
+    try { localStorage.setItem(LS_ADMIN, "1"); } catch {}
+    return true;
+  };
+  const signOut = () => {
+    setIsAdmin(false);
+    try { localStorage.removeItem(LS_ADMIN); } catch {}
+  };
+  const persist = (next: CustomLists) => {
+    setCustom(next);
+    try { localStorage.setItem(LS_LISTS, JSON.stringify(next)); } catch {}
+  };
+  const saveList = (day: number, titles: string[]) => persist({ ...custom, [day]: titles });
+  const clearList = (day: number) => {
+    const next = { ...custom };
+    delete next[day];
+    persist(next);
+  };
+
+  return <AdminContext.Provider value={{ isAdmin, signIn, signOut, custom, saveList, clearList }}>{children}</AdminContext.Provider>;
+}
+
+function AdminBar() {
+  const { isAdmin, signIn, signOut } = useAdmin();
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState("");
+  const [error, setError] = useState(false);
+
+  if (isAdmin) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="flex items-center gap-1.5 border border-[#c94729] bg-[#c94729] px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[.14em] text-white"><Check size={13} /> 관리자</span>
+        <button onClick={signOut} className="grid size-11 place-items-center border border-black/15 bg-[#f3efe7] transition hover:bg-black/5" aria-label="관리자 모드 종료"><LogOut size={18} /></button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button onClick={() => { setOpen((v) => !v); setError(false); }} className="grid size-11 place-items-center border border-black/15 bg-[#f3efe7] transition hover:bg-black/5" aria-label="관리자 로그인" aria-expanded={open}><Lock size={18} /></button>
+      {open && (
+        <form
+          onSubmit={(e) => { e.preventDefault(); if (signIn(code)) { setOpen(false); setCode(""); } else { setError(true); } }}
+          className="absolute right-0 top-[calc(100%+8px)] z-30 w-60 border border-black/20 bg-[#f3efe7] p-3 shadow-xl"
+        >
+          <p className="text-[11px] font-bold uppercase tracking-[.16em] text-black/55">Admin passcode</p>
+          <input
+            autoFocus type="password" value={code}
+            onChange={(e) => { setCode(e.target.value); setError(false); }}
+            className="mt-2 w-full border border-black/20 bg-white px-2.5 py-2 text-sm outline-none focus:border-[#c94729]"
+            placeholder="암호 입력"
+          />
+          {error && <p className="mt-1.5 text-[11px] font-semibold text-[#c94729]">암호가 올바르지 않습니다.</p>}
+          <button type="submit" className="mt-2 w-full bg-[#171614] py-2 text-xs font-bold uppercase tracking-[.16em] text-white transition hover:bg-[#ce4c2b]">로그인</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function TracklistEditor({ day, onClose }: { day: number; onClose: () => void }) {
+  const { custom, saveList, clearList } = useAdmin();
+  const hasCustom = Boolean(custom[day]);
+  const [draft, setDraft] = useState<string[]>(() => {
+    const base = resolveTracklist(day, custom);
+    return Array.from({ length: TRACKS_PER_BOX }, (_, i) => (custom[day]?.[i] ?? base[i] ?? ""));
+  });
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose} role="presentation">
+      <div className="paper-panel max-h-[90vh] w-full max-w-lg overflow-y-auto p-6 md:p-8" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`${dateLabel(day)} 트랙리스트 편집`}>
+        <div className="flex items-start justify-between border-b border-black/20 pb-4">
+          <div>
+            <p className="text-xs uppercase tracking-[.2em] text-black/50">Edit tracklist</p>
+            <p className="brand mt-1 text-4xl text-[#c94729]">{dateLabel(day)}</p>
+          </div>
+          <button onClick={onClose} className="icon-btn" aria-label="닫기"><X size={18} /></button>
+        </div>
+        <div className="mt-5 space-y-2">
+          {draft.map((value, i) => (
+            <label key={i} className="flex items-center gap-3">
+              <span className="brand w-7 shrink-0 text-lg text-black/45">{String(i + 1).padStart(2, "0")}</span>
+              <input
+                value={value}
+                onChange={(e) => setDraft((d) => d.map((v, j) => (j === i ? e.target.value : v)))}
+                className="w-full border border-black/20 bg-white px-3 py-2 text-sm outline-none focus:border-[#c94729]"
+                placeholder={`${i + 1}번 곡 제목`}
+              />
+            </label>
+          ))}
+        </div>
+        <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-black/20 pt-4">
+          <button
+            onClick={() => { saveList(day, draft.map((t) => t.trim())); onClose(); }}
+            className="flex items-center gap-2 bg-[#171614] px-5 py-2.5 text-xs font-bold uppercase tracking-[.16em] text-white transition hover:bg-[#ce4c2b]"
+          ><Check size={14} /> 저장</button>
+          {hasCustom && (
+            <button
+              onClick={() => { clearList(day); onClose(); }}
+              className="flex items-center gap-2 border border-black/20 px-4 py-2.5 text-xs font-bold uppercase tracking-[.16em] transition hover:bg-black/5"
+            ><RotateCcw size={14} /> 기본값으로</button>
+          )}
+          <button onClick={onClose} className="ml-auto px-4 py-2.5 text-xs font-bold uppercase tracking-[.16em] text-black/55 transition hover:text-black">취소</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function HomePage() {
+  return (
+    <AdminProvider>
+      <HomeShell />
+    </AdminProvider>
+  );
+}
+
+function HomeShell() {
   const [view, setView] = useState<"home" | "listen" | "collection">("home");
   const [trackIndex, setTrackIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -27,7 +200,10 @@ export default function HomePage() {
       <div className="mx-auto flex min-h-screen max-w-[1440px] flex-col px-4 py-5 md:px-8 md:py-8">
         <header className="mb-5 flex items-end justify-between border-b border-black/20 pb-4">
           <button onClick={() => setView("home")} className="text-left" aria-label="홈으로"><h1 className="brand text-4xl leading-none md:text-5xl">TEN TRACKS</h1><p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.24em]">A smaller world · a richer listen</p></button>
-          <button className="grid size-11 place-items-center border border-black/15 bg-[#f3efe7] transition hover:bg-[#ce4c2b] hover:text-white" aria-label="메뉴"><Menu size={21} /></button>
+          <div className="flex items-center gap-2">
+            <AdminBar />
+            <button className="grid size-11 place-items-center border border-black/15 bg-[#f3efe7] transition hover:bg-[#ce4c2b] hover:text-white" aria-label="메뉴"><Menu size={21} /></button>
+          </div>
         </header>
         <div className="grid flex-1 gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
           <aside className="hidden flex-col justify-between border-r border-black/15 pr-5 lg:flex">
@@ -133,10 +309,21 @@ function CollectionView({ onOpenToday }: { onOpenToday: () => void }) {
 }
 
 function BoxTracklist({ day, onOpen }: { day: number; onOpen: () => void }) {
-  const date = `${String(day + 1).padStart(2, "0")} SEP`;
-  const list = tracklistFor(day);
+  const { isAdmin, custom } = useAdmin();
+  const [editing, setEditing] = useState(false);
+  const date = dateLabel(day);
+  const list = resolveTracklist(day, custom);
+  const isCustom = Boolean(custom[day]);
   return <div className="mt-9">
-    <p className="text-xs uppercase tracking-[.2em] text-black/50">Tracklist in this box</p>
+    <div className="flex items-center justify-between">
+      <p className="text-xs uppercase tracking-[.2em] text-black/50">Tracklist in this box{isCustom && <span className="ml-2 text-[#c94729]">· 관리자 편성</span>}</p>
+      {isAdmin && (
+        <button onClick={() => setEditing(true)} className="flex items-center gap-1.5 border border-black/20 bg-[#f3efe7] px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[.14em] transition hover:bg-[#ce4c2b] hover:text-white">
+          <Pencil size={12} /> {date} 편집
+        </button>
+      )}
+    </div>
+    {editing && <TracklistEditor day={day} onClose={() => setEditing(false)} />}
     <div className="tt-scene mt-3 pt-12">
     <div className="tt-box text-[#f7efe2]">
       <div className="tt-box__lid" aria-hidden="true" />
@@ -148,4 +335,4 @@ function BoxTracklist({ day, onOpen }: { day: number; onOpen: () => void }) {
   </div>;
 }
 
-function MiniBox({ index, symbol, active, large = false }: { index: number; symbol: string; active: boolean; large?: boolean }) { const glyphs: Record<string, string> = { leaf: "❧", mountain: "△", moon: "◐", house: "⌂", tree: "♠", cat: "♣", globe: "◎", bird: "⌁", flower: "✤", wave: "≋" }; return <div className={`specimen-box aspect-[.72] p-3 transition hover:-translate-y-1 ${active ? "active-box" : ""} ${large ? "min-h-48" : ""}`}><p className="brand text-2xl">{String(index + 1).padStart(2, "0")}</p><p className="text-[10px] font-bold">{String(index + 1).padStart(2, "0")} SEP</p><div className="grid flex-1 place-items-center text-4xl">{glyphs[symbol]}</div><p className="text-[9px] uppercase tracking-wider">{active ? "Today's box" : index > 6 ? "Collected" : "Completed"}</p></div> }
+function MiniBox({ index, symbol, active, large = false }: { index: number; symbol: string; active: boolean; large?: boolean }) { const { custom } = useAdmin(); const glyphs: Record<string, string> = { leaf: "❧", mountain: "△", moon: "◐", house: "⌂", tree: "♠", cat: "♣", globe: "◎", bird: "⌁", flower: "✤", wave: "≋" }; return <div className={`specimen-box aspect-[.72] p-3 transition hover:-translate-y-1 ${active ? "active-box" : ""} ${large ? "min-h-48" : ""}`}>{custom[index] && <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-[#c94729] ring-2 ring-white/70" title="관리자가 편성한 트랙리스트" />}<p className="brand text-2xl">{String(index + 1).padStart(2, "0")}</p><p className="text-[10px] font-bold">{String(index + 1).padStart(2, "0")} SEP</p><div className="grid flex-1 place-items-center text-4xl">{glyphs[symbol]}</div><p className="text-[9px] uppercase tracking-wider">{active ? "Today's box" : index > 6 ? "Collected" : "Completed"}</p></div> }
