@@ -34,13 +34,13 @@ export function HomeShell() {
   const activeView = view === "admin" && !isAdmin ? "home" : view;
 
   return (
-    <main className="min-h-screen bg-[#e8e4dc] text-[#171614]">
+    <main className="min-h-screen bg-[#f4f2ec] text-[#17140f]">
       <div className="mx-auto flex min-h-screen max-w-[1440px] flex-col px-4 py-5 md:px-8 md:py-8">
-        <header className="mb-5 flex items-end justify-between border-b border-black/20 pb-4">
-          <button onClick={() => setView("home")} className="text-left" aria-label="홈으로"><h1 className="brand text-4xl leading-none md:text-5xl">TEN TRACKS</h1><p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.24em]">A smaller world · a richer listen</p></button>
+        <header className="mb-5 flex items-end justify-between border-b-4 border-double border-black pb-3">
+          <button onClick={() => setView("home")} className="text-left" aria-label="홈으로"><h1 className="brand text-5xl leading-[.9] md:text-6xl">TEN TRACKS</h1><p className="mt-2 border-t border-black pt-1 text-[11px] font-semibold uppercase tracking-[0.24em]">A smaller world · a richer listen</p></button>
           <div className="flex items-center gap-2">
             <AdminBar />
-            <button className="grid size-11 place-items-center border border-black/15 bg-[#f3efe7] transition hover:bg-[#ce4c2b] hover:text-white" aria-label="메뉴"><Menu size={21} /></button>
+            <button className="grid size-11 place-items-center border border-black bg-transparent transition hover:bg-black hover:text-[#f4f2ec]" aria-label="메뉴"><Menu size={21} /></button>
           </div>
         </header>
         <div className="grid flex-1 gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
@@ -60,7 +60,7 @@ export function HomeShell() {
             {activeView === "admin" && <AdminView initialDay={adminDay} onClose={() => setView("home")} />}
           </section>
         </div>
-        <nav className="fixed inset-x-4 bottom-4 z-20 flex justify-around border border-black/15 bg-[#f3efe7]/95 p-2 shadow-xl backdrop-blur lg:hidden">
+        <nav className="fixed inset-x-4 bottom-4 z-20 flex justify-around border border-black/15 bg-[#faf8f2]/95 p-2 backdrop-blur lg:hidden">
           <NavButton active={activeView === "home"} onClick={() => setView("home")} icon={<Home size={18} />} label="HOME" />
           <NavButton active={activeView === "listen"} onClick={() => setView("listen")} icon={<Search size={18} />} label="LISTEN" />
           <NavButton active={activeView === "collection"} onClick={() => setView("collection")} icon={<Box size={18} />} label="COLLECTION" />

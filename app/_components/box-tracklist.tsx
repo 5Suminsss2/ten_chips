@@ -11,21 +11,36 @@ export function BoxTracklist({ day, onOpen, onEditDay }: { day: number; onOpen: 
   const isCustom = Boolean(days[day]?.length);
   return (
     <div className="mt-9">
-      <div className="flex items-center justify-between">
-        <p className="text-xs uppercase tracking-[.2em] text-black/50">Tracklist in this box{isCustom && <span className="ml-2 text-[#c94729]">· 관리자 편성</span>}</p>
+      <div className="flex items-center justify-between border-b border-black pb-1">
+        <p className="text-xs uppercase tracking-[.2em]">Tracklist in this box{isCustom && <span className="ml-2 font-bold text-[#b5121b]">· 관리자 편성</span>}</p>
         {isAdmin && (
-          <button onClick={() => onEditDay(day)} className="flex items-center gap-1.5 border border-black/20 bg-[#f3efe7] px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[.14em] transition hover:bg-[#ce4c2b] hover:text-white">
+          <button onClick={() => onEditDay(day)} className="flex items-center gap-1.5 border border-black px-2.5 py-1 text-[11px] font-bold uppercase tracking-[.14em] transition hover:bg-black hover:text-[#f4f2ec]">
             <Pencil size={12} /> {date} 편집
           </button>
         )}
       </div>
-      <div className="tt-scene mt-3 pt-12">
-        <div className="tt-box text-[#f7efe2]">
-          <div className="tt-box__lid" aria-hidden="true" />
-          <div className="relative z-[2] flex items-center justify-between px-4 pt-3 pb-2 [text-shadow:0_1px_2px_rgba(0,0,0,.4)]"><span className="brand text-2xl">{date}</span><span className="flex items-center gap-2 text-right text-[10px] font-bold uppercase leading-tight tracking-[.16em]">Ten tracks<br />A wider you.<span className="text-lg">◎</span></span></div>
-          <div className="tt-box__floor z-[2] flex gap-[3px] overflow-x-auto px-3 pt-3 pb-3">{list.map((name, i) => <button key={i} onClick={() => onOpen(day)} className="tt-spine flex h-44 w-7 shrink-0 flex-1 flex-col items-center gap-2 py-2 text-black/80 transition-transform duration-200 hover:-translate-y-1.5" aria-label={`${i + 1}번 트랙 ${name}`}><span className="brand text-[13px]">{String(i + 1).padStart(2, "0")}</span><span className="[writing-mode:vertical-rl] rotate-180 whitespace-nowrap text-[11px] font-semibold tracking-wide">{name}</span></button>)}</div>
-          <div className="relative z-[2] px-4 py-2 text-center text-[10px] font-bold uppercase tracking-[.32em] [text-shadow:0_1px_2px_rgba(0,0,0,.4)]">◎ {date} · Ten Tracks</div>
+      <div className="mt-3 border border-black bg-[#faf8f2]">
+        <div className="flex items-baseline justify-between border-b border-black px-3 py-2">
+          <span className="brand text-2xl leading-none">{date}</span>
+          <span className="text-[10px] font-bold uppercase tracking-[.18em]">Ten tracks · A wider you ◎</span>
         </div>
+        <ol>
+          {list.map((name, i) => (
+            <li key={i} className="border-b border-black/15 last:border-b-0">
+              <button
+                onClick={() => onOpen(day)}
+                className="group flex w-full items-baseline gap-3 px-3 py-2 text-left transition hover:bg-black hover:text-[#f4f2ec]"
+                aria-label={`${i + 1}번 트랙 ${name}`}
+              >
+                <span className="brand w-6 shrink-0 text-lg tabular-nums">{String(i + 1).padStart(2, "0")}</span>
+                <span className="font-medium">{name}</span>
+                <span className="mx-1 flex-1 self-center border-b border-dotted border-current opacity-30 group-hover:opacity-50" />
+                <span className="shrink-0 text-[10px] font-bold uppercase tracking-[.16em] opacity-45 group-hover:opacity-100">Play</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+        <div className="border-t border-black px-3 py-1.5 text-center text-[10px] font-bold uppercase tracking-[.3em]">◎ {date} · Ten Tracks</div>
       </div>
     </div>
   );
