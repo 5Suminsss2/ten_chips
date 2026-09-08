@@ -5,7 +5,7 @@ import { ChevronLeft, Heart, Pause, Play, SkipBack, SkipForward } from "lucide-r
 import type { Track } from "@/app/_lib/tracks";
 import { TrackCard } from "@/app/_components/track-card";
 
-export function ListenView({ tracks, index, playing, liked, onBack, onToggle, onLike, onNext, onPrev, onSelect }: { tracks: Track[]; index: number; playing: boolean; liked: boolean; onBack: () => void; onToggle: () => void; onLike: () => void; onNext: () => void; onPrev: () => void; onSelect: (i: number) => void }) {
+export function ListenView({ tracks, index, playing, liked, date = "07 SEP", onBack, onToggle, onLike, onNext, onPrev, onSelect }: { tracks: Track[]; index: number; playing: boolean; liked: boolean; date?: string; onBack: () => void; onToggle: () => void; onLike: () => void; onNext: () => void; onPrev: () => void; onSelect: (i: number) => void }) {
   const total = tracks.length;
   const [drag, setDrag] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -36,7 +36,7 @@ export function ListenView({ tracks, index, playing, liked, onBack, onToggle, on
     if (e.key === "ArrowRight") onNext();
   };
 
-  return <article className="paper-panel mx-auto max-w-4xl p-5 md:p-9"><div className="flex items-center justify-between"><button onClick={onBack} className="icon-btn" aria-label="뒤로"><ChevronLeft /></button><p className="brand text-2xl">TEN TRACKS</p><p className="text-sm font-bold">07 SEP</p></div>
+  return <article className="paper-panel mx-auto max-w-4xl p-5 md:p-9"><div className="flex items-center justify-between"><button onClick={onBack} className="icon-btn" aria-label="뒤로"><ChevronLeft /></button><p className="brand text-2xl">TEN TRACKS</p><p className="text-sm font-bold">{date}</p></div>
     <p className="mt-5 text-center text-sm font-bold tracking-[.28em]">{String(index + 1).padStart(2, "0")} <span className="text-black/40">/ {String(total).padStart(2, "0")}</span></p>
     <div className="relative mx-auto mt-4 h-[520px] max-w-md touch-pan-y select-none overflow-hidden outline-none sm:h-[540px]" tabIndex={0} onKeyDown={onKey} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
       {tracks.map((t, i) => {
@@ -44,8 +44,8 @@ export function ListenView({ tracks, index, playing, liked, onBack, onToggle, on
         const hidden = Math.abs(offset) > 1;
         const isCenter = offset === 0;
         const shift = offset * 80 + drag * 92;
-        return <div key={t.title} onClick={() => !isCenter && !hidden && onSelect(i)} role={!isCenter && !hidden ? "button" : undefined} aria-hidden={hidden} className={`absolute left-1/2 top-0 h-full w-[80%] origin-bottom transition-transform ease-out ${dragging ? "duration-0" : "duration-300"} ${!isCenter && !hidden ? "cursor-pointer" : ""}`} style={{ transform: `translateX(calc(-50% + ${shift}%)) translateY(${isCenter ? 0 : 18}px) scale(${isCenter ? 1 : 0.9}) rotate(${isCenter ? 0 : offset * 3.5}deg)`, opacity: hidden ? 0 : isCenter ? 1 : 0.5, pointerEvents: hidden ? "none" : "auto", zIndex: isCenter ? 2 : 1 }}>
-          <TrackCard track={t} index={i} dimmed={!isCenter} />
+        return <div key={i} onClick={() => !isCenter && !hidden && onSelect(i)} role={!isCenter && !hidden ? "button" : undefined} aria-hidden={hidden} className={`absolute left-1/2 top-0 h-full w-[80%] origin-bottom transition-transform ease-out ${dragging ? "duration-0" : "duration-300"} ${!isCenter && !hidden ? "cursor-pointer" : ""}`} style={{ transform: `translateX(calc(-50% + ${shift}%)) translateY(${isCenter ? 0 : 18}px) scale(${isCenter ? 1 : 0.9}) rotate(${isCenter ? 0 : offset * 3.5}deg)`, opacity: hidden ? 0 : isCenter ? 1 : 0.5, pointerEvents: hidden ? "none" : "auto", zIndex: isCenter ? 2 : 1 }}>
+          <TrackCard track={t} index={i} dimmed={!isCenter} date={date} />
         </div>;
       })}
     </div>

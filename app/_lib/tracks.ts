@@ -1,4 +1,4 @@
-export type Track = { title: string; artist: string; tags: string[]; note: string };
+export type Track = { title: string; artist: string; tags: string[]; note: string; image?: string };
 
 export const tracks: Track[] = [
   { title: "La Llorona (World Mix)", artist: "Lila Downs", tags: ["WORLD", "FOLK", "MEXICO"], note: "익숙하지 않은 언어가 건네는 낯선 감정. 듣고 나면, 당신의 플레이리스트가 조금 더 넓어질 거예요." },
