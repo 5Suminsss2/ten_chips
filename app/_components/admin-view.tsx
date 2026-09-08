@@ -20,7 +20,7 @@ const toTrack = (r: Row): Track => ({
 });
 const isBlank = (r: Row) => !r.title.trim() && !r.artist.trim() && !r.note.trim() && !r.image.trim() && !parseTags(r.keywords).length;
 
-const inputCls = "w-full border border-black/20 bg-white px-3 py-2 text-sm outline-none focus:border-[#f5402a]";
+const inputCls = "w-full border border-black/20 bg-white px-3 py-2 text-sm outline-none focus:border-[#c94729]";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -54,7 +54,7 @@ export function AdminView({ initialDay, onClose }: { initialDay: number; onClose
             <button
               key={i}
               onClick={() => setDay(i)}
-              className={`flex shrink-0 flex-col items-start border px-3 py-2 transition ${activeDay ? "border-[#f5402a] bg-[#f5402a] text-white" : "border-black/20 bg-[#f3f4ef] hover:bg-black/5"}`}
+              className={`flex shrink-0 flex-col items-start border px-3 py-2 transition ${activeDay ? "border-[#c94729] bg-[#c94729] text-white" : "border-black/20 bg-[#f3efe7] hover:bg-black/5"}`}
             >
               <span className="brand text-lg leading-none">{dateLabel(i)}</span>
               <span className="mt-1 text-[10px] font-bold uppercase tracking-[.12em] opacity-80">{count ? `${count}곡 등록` : "미등록"}</span>
@@ -126,14 +126,14 @@ function DayEditor({ day }: { day: number }) {
               이 날짜 비우기
             </button>
           )}
-          <button onClick={save} className="bg-[#1b3a32] px-5 py-2 text-xs font-bold uppercase tracking-[.14em] text-white transition hover:bg-[#f5402a]">
+          <button onClick={save} className="bg-[#171614] px-5 py-2 text-xs font-bold uppercase tracking-[.14em] text-white transition hover:bg-[#ce4c2b]">
             저장
           </button>
         </div>
       </div>
 
       {status && (
-        <p className={`mt-3 border px-3 py-2 text-sm font-semibold ${status.ok ? "border-[#2f7d4f] text-[#2f7d4f]" : "border-[#f5402a] text-[#f5402a]"}`}>
+        <p className={`mt-3 border px-3 py-2 text-sm font-semibold ${status.ok ? "border-[#2f7d4f] text-[#2f7d4f]" : "border-[#c94729] text-[#c94729]"}`}>
           {status.msg}
         </p>
       )}
@@ -142,10 +142,10 @@ function DayEditor({ day }: { day: number }) {
         {rows.map((row, i) => {
           const tags = parseTags(row.keywords);
           return (
-            <div key={i} className="border border-black/15 bg-[#f3f4ef] p-4 md:p-5">
+            <div key={i} className="border border-black/15 bg-[#f3efe7] p-4 md:p-5">
               <div className="flex items-center justify-between">
-                <span className="brand text-3xl text-[#f5402a]">{String(i + 1).padStart(2, "0")}</span>
-                <button onClick={() => removeRow(i)} className="flex items-center gap-1 text-xs font-bold text-black/50 transition hover:text-[#f5402a]">
+                <span className="brand text-3xl text-[#c94729]">{String(i + 1).padStart(2, "0")}</span>
+                <button onClick={() => removeRow(i)} className="flex items-center gap-1 text-xs font-bold text-black/50 transition hover:text-[#c94729]">
                   <Trash2 size={13} /> 삭제
                 </button>
               </div>
@@ -172,7 +172,7 @@ function DayEditor({ day }: { day: number }) {
                     value={row.image}
                     onChange={(e) => update(i, { image: e.target.value })}
                     placeholder="또는 이미지 URL"
-                    className="mt-2 w-full border border-black/20 bg-white px-2 py-1.5 text-xs outline-none focus:border-[#f5402a]"
+                    className="mt-2 w-full border border-black/20 bg-white px-2 py-1.5 text-xs outline-none focus:border-[#c94729]"
                   />
                 </div>
 
