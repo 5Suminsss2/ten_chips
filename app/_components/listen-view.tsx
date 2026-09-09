@@ -2,10 +2,10 @@
 
 import { useRef, useState } from "react";
 import { ChevronLeft, Heart, Pause, Play, SkipBack, SkipForward } from "lucide-react";
-import type { Track } from "@/app/_lib/tracks";
+import { dateLabel, todayIndex, type Track } from "@/app/_lib/tracks";
 import { TrackCard } from "@/app/_components/track-card";
 
-export function ListenView({ tracks, index, playing, liked, date = "07 SEP", onBack, onToggle, onLike, onNext, onPrev, onSelect }: { tracks: Track[]; index: number; playing: boolean; liked: boolean; date?: string; onBack: () => void; onToggle: () => void; onLike: () => void; onNext: () => void; onPrev: () => void; onSelect: (i: number) => void }) {
+export function ListenView({ tracks, index, playing, liked, date = dateLabel(todayIndex()), onBack, onToggle, onLike, onNext, onPrev, onSelect }: { tracks: Track[]; index: number; playing: boolean; liked: boolean; date?: string; onBack: () => void; onToggle: () => void; onLike: () => void; onNext: () => void; onPrev: () => void; onSelect: (i: number) => void }) {
   const total = tracks.length;
   const [drag, setDrag] = useState(0);
   const [dragging, setDragging] = useState(false);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ChevronLeft, ImagePlus, Plus, Trash2 } from "lucide-react";
-import { archive, dateLabel, TRACKS_PER_BOX, type Track } from "@/app/_lib/tracks";
+import { boxSymbols, dateLabel, TRACKS_PER_BOX, type Track } from "@/app/_lib/tracks";
 import { useAdmin } from "@/app/_lib/admin-context";
 import { fileToDataUrl } from "@/app/_lib/image";
 
@@ -47,7 +47,7 @@ export function AdminView({ initialDay, onClose }: { initialDay: number; onClose
 
       <p className="mt-5 text-xs uppercase tracking-[.2em] text-black/50">날짜 선택</p>
       <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
-        {archive.map((_, i) => {
+        {boxSymbols.map((_, i) => {
           const count = days[i]?.length ?? 0;
           const activeDay = i === day;
           return (

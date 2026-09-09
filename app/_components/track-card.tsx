@@ -1,7 +1,7 @@
-import type { Track } from "@/app/_lib/tracks";
+import { dateLabel, todayIndex, type Track } from "@/app/_lib/tracks";
 
 // 곡 카드: 사진 + 제목 / 아티스트 + 키워드(tags) + 설명(note)
-export function TrackCard({ track, index, dimmed, date = "07 SEP" }: { track: Track; index: number; dimmed?: boolean; date?: string }) {
+export function TrackCard({ track, index, dimmed, date = dateLabel(todayIndex()) }: { track: Track; index: number; dimmed?: boolean; date?: string }) {
   return (
     <div className={`flex h-full flex-col overflow-hidden border border-black/15 bg-[#faf8f2] p-5 text-left md:p-6 ${dimmed ? "blur-[1px]" : ""}`}>
       <div className="flex items-start justify-between"><span className="brand text-5xl text-[#b5121b] md:text-6xl">{String(index + 1).padStart(2, "0")}</span><div className="text-right"><p className="font-bold">낯선 장르 {index + 1}</p><p className="text-sm text-black/60">의외의 발견</p></div></div>

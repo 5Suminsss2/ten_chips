@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Box, Home, Menu, Play, Search, Settings, UserRound } from "lucide-react";
-import { dateLabel, tracks } from "@/app/_lib/tracks";
+import { dateLabel, dateLabelLong, todayIndex, tracks } from "@/app/_lib/tracks";
 import { resolveDayTracks, useAdmin } from "@/app/_lib/admin-context";
 import { AdminBar } from "@/app/_components/admin-bar";
 import { NavButton } from "@/app/_components/nav-button";
@@ -14,8 +14,9 @@ import { AdminView } from "@/app/_components/admin-view";
 export function HomeShell() {
   const { isAdmin, days } = useAdmin();
   const [view, setView] = useState<"home" | "listen" | "collection" | "admin">("home");
-  const [openDay, setOpenDay] = useState(6);
-  const [adminDay, setAdminDay] = useState(6);
+  const today = todayIndex();
+  const [openDay, setOpenDay] = useState(today);
+  const [adminDay, setAdminDay] = useState(today);
   const [trackIndex, setTrackIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [liked, setLiked] = useState(false);
@@ -45,7 +46,7 @@ export function HomeShell() {
         </header>
         <div className="grid flex-1 gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
           <aside className="hidden flex-col justify-between border-r border-black/15 pr-5 lg:flex">
-            <div><p className="text-xs uppercase tracking-[0.24em] text-black/50">07 September</p><p className="mt-5 max-w-[190px] text-2xl font-semibold leading-tight">오늘도, 음악이 조금 더 넓은 세계로.</p></div>
+            <div><p className="text-xs uppercase tracking-[0.24em] text-black/50">{dateLabelLong(today)}</p><p className="mt-5 max-w-[190px] text-2xl font-semibold leading-tight">오늘도, 음악이 조금 더 넓은 세계로.</p></div>
             <nav className="space-y-1">
               <NavButton active={activeView === "home"} onClick={() => setView("home")} icon={<Home size={18} />} label="HOME" />
               <NavButton active={activeView === "listen"} onClick={() => setView("listen")} icon={<Play size={18} />} label="LISTEN" />
