@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- YT IFrame API에 타입 정의가 없어 any로 다룬다 */
 declare global {
@@ -31,9 +31,11 @@ function loadApi(): Promise<void> {
 
 /**
  * 유튜브 IFrame 플레이어 뼈대.
- * - hostRef 를 렌더한 <div> 에 연결하면 그 안에 플레이어가 생성된다.
- * - playing / videoId 변화에 따라 재생·일시정지·곡 교체를 처리한다.
- * - currentTime / duration 은 0.5초 간격 폴링으로 갱신한다(진행바·시간 표시용).
+ * setHost 를 "재생 위치" <div> 의 ref 로 넘긴다. 그 노드가 바뀌면(카드 캐러셀에서
+ * 중앙 카드가 바뀌면) 플레이어를 그 자리에 다시 만든다 — iframe 은 부모가 바뀌면
+ * 어차피 새로고침되므로 곡을 넘기면 영상도 다시 로드된다.
+ * currentTime / duration 은 0.5초 폴링으로 갱신(진행바·시간 표시용).
+ * 브라우저 자동재생 정책상 첫 재생은 클릭 핸들러 안에서 play() 를 동기 호출해야 소리가 난다.
  */
 export function useYouTubePlayer({
   videoId,
@@ -44,8 +46,8 @@ export function useYouTubePlayer({
   playing: boolean;
   onEnded?: () => void;
 }) {
-  const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<any>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const [ready, setReady] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -54,52 +56,55 @@ export function useYouTubePlayer({
     onEndedRef.current = onEnded;
   });
 
-  /* 플레이어 1회 생성 + 언마운트 시 파기 */
-  useEffect(() => {
-    let cancelled = false;
-    let poll: ReturnType<typeof setInterval> | undefined;
-
-    loadApi().then(() => {
-      if (cancelled || !hostRef.current || playerRef.current) return;
-      const el = document.createElement("div"); // YT 가 이 노드를 iframe 으로 치환한다
-      hostRef.current.appendChild(el);
-      playerRef.current = new window.YT.Player(el, {
-        width: "100%",
-        height: "100%",
-        videoId: videoId || undefined,
-        playerVars: { playsinline: 1, rel: 0, modestbranding: 1 },
-        events: {
-          onReady: () => {
-            if (!cancelled) setReady(true);
-          },
-          onStateChange: (e: any) => {
-            if (e.data === window.YT.PlayerState.ENDED) onEndedRef.current?.();
-          },
-        },
-      });
-      poll = setInterval(() => {
-        const p = playerRef.current;
-        if (!p?.getDuration) return;
-        setCurrentTime(p.getCurrentTime?.() || 0);
-        setDuration(p.getDuration?.() || 0);
-      }, 500);
-    });
-
-    return () => {
-      cancelled = true;
-      if (poll) clearInterval(poll);
-      try {
-        playerRef.current?.destroy?.();
-      } catch {
-        /* 이미 정리됨 */
-      }
-      playerRef.current = null;
-    };
-    // 마운트 시 1회만 (videoId 초기값은 위에서 사용, 이후 변화는 아래 effect가 처리)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const teardown = useCallback(() => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = undefined;
+    try {
+      playerRef.current?.destroy?.();
+    } catch {
+      /* 이미 정리됨 */
+    }
+    playerRef.current = null;
+    setReady(false);
+    setCurrentTime(0);
+    setDuration(0);
   }, []);
 
-  /* 곡이 바뀌면 새 영상을 큐에 올린다(자동재생 X) */
+  /* 재생 위치 노드가 붙거나 떨어질 때마다 플레이어를 새로 만든다 */
+  const setHost = useCallback(
+    (node: HTMLDivElement | null) => {
+      teardown();
+      if (!node) return;
+      loadApi().then(() => {
+        if (playerRef.current) return;
+        const el = document.createElement("div"); // YT 가 iframe 으로 치환
+        node.appendChild(el);
+        playerRef.current = new window.YT.Player(el, {
+          width: "100%",
+          height: "100%",
+          playerVars: { playsinline: 1, rel: 0, modestbranding: 1 },
+          events: {
+            onReady: () => setReady(true),
+            onStateChange: (e: any) => {
+              if (e.data === window.YT.PlayerState.ENDED) onEndedRef.current?.();
+            },
+          },
+        });
+        pollRef.current = setInterval(() => {
+          const p = playerRef.current;
+          if (!p?.getDuration) return;
+          setCurrentTime(p.getCurrentTime?.() || 0);
+          setDuration(p.getDuration?.() || 0);
+        }, 500);
+      });
+    },
+    [teardown],
+  );
+
+  /* 언마운트 시 확실히 정리 */
+  useEffect(() => teardown, [teardown]);
+
+  /* 준비되면(또는 videoId 가 바뀌면) 해당 영상을 큐에 올린다(자동재생 X) */
   useEffect(() => {
     const p = playerRef.current;
     if (!p || !ready) return;
@@ -109,7 +114,7 @@ export function useYouTubePlayer({
     else p.stopVideo?.();
   }, [videoId, ready]);
 
-  /* playing prop 변화에 맞춰 재생/일시정지 (키보드·스와이프 등 간접 조작 대비) */
+  /* 재생 / 일시정지 */
   useEffect(() => {
     const p = playerRef.current;
     if (!p || !ready || !videoId) return;
@@ -117,9 +122,8 @@ export function useYouTubePlayer({
     else p.pauseVideo?.();
   }, [playing, videoId, ready]);
 
-  /* 브라우저 자동재생 정책상 첫 재생은 클릭 핸들러 안에서 동기로 호출해야 소리가 난다. */
   const play = () => playerRef.current?.playVideo?.();
   const pause = () => playerRef.current?.pauseVideo?.();
 
-  return { hostRef, ready, currentTime, duration, play, pause };
+  return { setHost, ready, currentTime, duration, play, pause };
 }

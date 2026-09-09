@@ -9,7 +9,7 @@ import { useYouTubePlayer } from "@/app/_lib/use-youtube-player";
 export function ListenView({ tracks, index, playing, liked, date = dateLabel(todayIndex()), onBack, onToggle, onLike, onNext, onPrev, onSelect }: { tracks: Track[]; index: number; playing: boolean; liked: boolean; date?: string; onBack: () => void; onToggle: () => void; onLike: () => void; onNext: () => void; onPrev: () => void; onSelect: (i: number) => void }) {
   const total = tracks.length;
   const currentId = tracks[index]?.youtubeId?.trim() || "";
-  const { hostRef, currentTime, duration, play, pause } = useYouTubePlayer({ videoId: currentId, playing, onEnded: onNext });
+  const { setHost, currentTime, duration, play, pause } = useYouTubePlayer({ videoId: currentId, playing, onEnded: onNext });
   const pct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const [drag, setDrag] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -49,15 +49,11 @@ export function ListenView({ tracks, index, playing, liked, date = dateLabel(tod
         const isCenter = offset === 0;
         const shift = offset * 80 + drag * 92;
         return <div key={i} onClick={() => !isCenter && !hidden && onSelect(i)} role={!isCenter && !hidden ? "button" : undefined} aria-hidden={hidden} className={`absolute left-1/2 top-0 h-full w-[80%] origin-bottom transition-transform ease-out ${dragging ? "duration-0" : "duration-300"} ${!isCenter && !hidden ? "cursor-pointer" : ""}`} style={{ transform: `translateX(calc(-50% + ${shift}%)) translateY(${isCenter ? 0 : 18}px) scale(${isCenter ? 1 : 0.9}) rotate(${isCenter ? 0 : offset * 3.5}deg)`, opacity: hidden ? 0 : isCenter ? 1 : 0.5, pointerEvents: hidden ? "none" : "auto", zIndex: isCenter ? 2 : 1 }}>
-          <TrackCard track={t} index={i} dimmed={!isCenter} date={date} />
+          <TrackCard track={t} index={i} dimmed={!isCenter} date={date} isCenter={isCenter} hasVideo={!!currentId} playerSlot={isCenter ? setHost : undefined} />
         </div>;
       })}
     </div>
     <div className="mx-auto mt-6 max-w-md">
-      <div className="relative mb-4 aspect-video overflow-hidden border border-black/15 bg-black">
-        <div ref={hostRef} className="absolute inset-0" />
-        {!currentId && <p className="absolute inset-0 grid place-items-center px-4 text-center text-[11px] font-bold uppercase tracking-[.16em] text-white/70">유튜브 영상 미연결</p>}
-      </div>
       <div className="h-1 bg-black/15"><div className="h-full bg-black transition-[width] duration-500 ease-linear" style={{ width: `${pct}%` }} /></div>
       <div className="mt-2 flex justify-between text-xs tabular-nums"><span>{formatTime(currentTime)}</span><span>-{formatTime(duration - currentTime)}</span></div>
       <div className="mt-5 flex items-center justify-center gap-5"><button onClick={onPrev} disabled={index === 0} className="icon-btn disabled:opacity-30" aria-label="이전 곡"><SkipBack /></button><button onClick={() => { if (playing) pause(); else play(); onToggle(); }} disabled={!currentId} className="grid size-16 place-items-center bg-black text-white disabled:opacity-30" aria-label={playing ? "일시정지" : "재생"}>{playing ? <Pause /> : <Play />}</button><button onClick={onNext} disabled={index === total - 1} className="icon-btn disabled:opacity-30" aria-label="다음 곡"><SkipForward /></button><button onClick={onLike} className={`icon-btn ${liked ? "bg-[#b5121b] text-white" : ""}`} aria-label="의외로 좋아요"><Heart fill={liked ? "currentColor" : "none"} /></button></div>
