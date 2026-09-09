@@ -36,3 +36,16 @@ export const dateLabel = (day: number, now: Date = new Date()) => `${String(day 
 
 /* "07 September" 형태. */
 export const dateLabelLong = (day: number, now: Date = new Date()) => `${String(day + 1).padStart(2, "0")} ${MONTHS_LONG[now.getMonth()]}`;
+
+/* 초 → "M:SS" */
+export const formatTime = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
+
+/* 실제 오디오가 없어, 트랙 제목에서 안정적인 표시용 재생시간(2:40~4:55, 초)을 만든다. */
+export const trackDurationSec = (name: string) => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return 160 + (Math.abs(h) % 136);
+};
+
+/* 트랙 제목 → "3:28" 형태의 표시용 재생시간 */
+export const trackDuration = (name: string) => formatTime(trackDurationSec(name));

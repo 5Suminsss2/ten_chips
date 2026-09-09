@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil } from "lucide-react";
-import { dateLabel } from "@/app/_lib/tracks";
+import { dateLabel, trackDuration } from "@/app/_lib/tracks";
 import { tracklistTitles, useAdmin } from "@/app/_lib/admin-context";
 
 export function BoxTracklist({ day, onOpen, onEditDay }: { day: number; onOpen: (day: number) => void; onEditDay: (day: number) => void }) {
@@ -35,7 +35,7 @@ export function BoxTracklist({ day, onOpen, onEditDay }: { day: number; onOpen: 
                 <span className="brand w-6 shrink-0 text-lg tabular-nums">{String(i + 1).padStart(2, "0")}</span>
                 <span className="font-medium">{name}</span>
                 <span className="mx-1 flex-1 self-center border-b border-dotted border-current opacity-30 group-hover:opacity-50" />
-                <span className="shrink-0 text-[10px] font-bold uppercase tracking-[.16em] opacity-45 group-hover:opacity-100">Play</span>
+                <span className="shrink-0 text-[10px] font-bold tabular-nums tracking-[.16em] opacity-45 group-hover:opacity-100">{trackDuration(name)}</span>
               </button>
             </li>
           ))}
