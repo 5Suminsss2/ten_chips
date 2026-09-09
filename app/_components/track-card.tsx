@@ -8,6 +8,7 @@ export function TrackCard({
   date = dateLabel(todayIndex()),
   isCenter = false,
   hasVideo = false,
+  videoId = "",
   playerSlot,
 }: {
   track: Track;
@@ -18,6 +19,8 @@ export function TrackCard({
   isCenter?: boolean;
   /* 이 곡에 연결된 유튜브 영상이 있는지 */
   hasVideo?: boolean;
+  /* 재생 중인 유튜브 영상 ID (썸네일 표시용) */
+  videoId?: string;
   /* 중앙 카드일 때 유튜브 플레이어가 붙을 자리 */
   playerSlot?: (node: HTMLDivElement | null) => void;
 }) {
@@ -25,7 +28,12 @@ export function TrackCard({
     <div className={`flex h-full flex-col overflow-hidden border border-black/15 bg-[#faf8f2] p-5 text-left md:p-6 ${dimmed ? "blur-[1px]" : ""}`}>
       <div className="flex items-start justify-between"><span className="brand text-5xl text-[#b5121b] md:text-6xl">{String(index + 1).padStart(2, "0")}</span><div className="text-right"><p className="font-bold">낯선 장르 {index + 1}</p><p className="text-sm text-black/60">의외의 발견</p></div></div>
       {isCenter && hasVideo ? (
-        <div ref={playerSlot} className="mt-3 h-40 w-full overflow-hidden border border-black/15 bg-black md:h-44" />
+        // 유튜브 플레이어는 썸네일 이미지로 덮어 재생 버튼·컨트롤을 가린다.
+        // (오디오 재생은 하단 재생 버튼이 JS API로 제어. iframe 은 display:none 이 아니라 '가려진' 상태여야 정상 동작)
+        <div className="relative mt-3 h-40 w-full overflow-hidden border border-black/15 bg-black md:h-44">
+          <div ref={playerSlot} className="absolute inset-0" />
+          <img src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} alt={track.title ? `${track.title} 썸네일` : "썸네일"} className="absolute inset-0 h-full w-full object-cover grayscale" />
+        </div>
       ) : isCenter ? (
         <div className="mt-3 grid h-40 w-full place-items-center border border-black/15 bg-black px-4 text-center text-[10px] font-bold uppercase leading-relaxed tracking-[.14em] text-white/60 md:h-44">유튜브 영상 미연결</div>
       ) : (

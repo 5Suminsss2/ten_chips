@@ -49,7 +49,7 @@ export function ListenView({ tracks, index, playing, liked, date = dateLabel(tod
         const isCenter = offset === 0;
         const shift = offset * 80 + drag * 92;
         return <div key={i} onClick={() => !isCenter && !hidden && onSelect(i)} role={!isCenter && !hidden ? "button" : undefined} aria-hidden={hidden} className={`absolute left-1/2 top-0 h-full w-[80%] origin-bottom transition-transform ease-out ${dragging ? "duration-0" : "duration-300"} ${!isCenter && !hidden ? "cursor-pointer" : ""}`} style={{ transform: `translateX(calc(-50% + ${shift}%)) translateY(${isCenter ? 0 : 18}px) scale(${isCenter ? 1 : 0.9}) rotate(${isCenter ? 0 : offset * 3.5}deg)`, opacity: hidden ? 0 : isCenter ? 1 : 0.5, pointerEvents: hidden ? "none" : "auto", zIndex: isCenter ? 2 : 1 }}>
-          <TrackCard track={t} index={i} dimmed={!isCenter} date={date} isCenter={isCenter} hasVideo={!!currentId} playerSlot={isCenter ? setHost : undefined} />
+          <TrackCard track={t} index={i} dimmed={!isCenter} date={date} isCenter={isCenter} hasVideo={!!currentId} videoId={currentId} playerSlot={isCenter ? setHost : undefined} />
         </div>;
       })}
     </div>
