@@ -32,10 +32,10 @@ export const useAdmin = () => {
 export const resolveDayTracks = (day: number, days: CustomDays): Track[] | null =>
   days[day]?.length ? days[day] : null;
 
-// 상자 스파인에 표시할 제목 목록 — 등록본이 있으면 그 제목들, 없으면 자동 생성 리스트
-export const tracklistTitles = (day: number, days: CustomDays): string[] => {
+// 상자 스파인에 표시할 트랙 목록(제목·아티스트) — 등록본이 있으면 그것을, 없으면 자동 생성 리스트
+export const tracklistEntries = (day: number, days: CustomDays): { title: string; artist: string }[] => {
   const custom = days[day];
-  if (custom?.length) return custom.map((t) => t.title.trim() || "(제목 미정)");
+  if (custom?.length) return custom.map((t) => ({ title: t.title.trim() || "(제목 미정)", artist: t.artist.trim() || "미상" }));
   return tracklistFor(day);
 };
 

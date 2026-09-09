@@ -10,7 +10,18 @@ export const tracks: Track[] = [
 /* 상자 심볼 기본 풀 — 한 달 길이만큼 순환해서 사용한다 */
 const SYMBOL_POOL = ["leaf", "mountain", "moon", "house", "tree", "cat", "globe", "bird", "flower", "wave"];
 
-export const boxTracklist = ["La Llorona", "Sunset in Accra", "Paper Moon", "The Quiet Market", "Midnight Market", "Third Culture", "Neon Prayer", "Salt Flats", "Kintsugi", "The Same Sky"];
+export const boxTracklist: { title: string; artist: string }[] = [
+  { title: "La Llorona", artist: "Lila Downs" },
+  { title: "Sunset in Accra", artist: "Ebo Taylor" },
+  { title: "Paper Moon", artist: "Mondo Grosso" },
+  { title: "The Quiet Market", artist: "Nala Sinephro" },
+  { title: "Midnight Market", artist: "Khruangbin" },
+  { title: "Third Culture", artist: "Sault" },
+  { title: "Neon Prayer", artist: "Men I Trust" },
+  { title: "Salt Flats", artist: "Floating Points" },
+  { title: "Kintsugi", artist: "Hania Rani" },
+  { title: "The Same Sky", artist: "Nils Frahm" },
+];
 
 export const TRACKS_PER_BOX = 10;
 
@@ -36,16 +47,3 @@ export const dateLabel = (day: number, now: Date = new Date()) => `${String(day 
 
 /* "07 September" 형태. */
 export const dateLabelLong = (day: number, now: Date = new Date()) => `${String(day + 1).padStart(2, "0")} ${MONTHS_LONG[now.getMonth()]}`;
-
-/* 초 → "M:SS" */
-export const formatTime = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, "0")}`;
-
-/* 실제 오디오가 없어, 트랙 제목에서 안정적인 표시용 재생시간(2:40~4:55, 초)을 만든다. */
-export const trackDurationSec = (name: string) => {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
-  return 160 + (Math.abs(h) % 136);
-};
-
-/* 트랙 제목 → "3:28" 형태의 표시용 재생시간 */
-export const trackDuration = (name: string) => formatTime(trackDurationSec(name));
