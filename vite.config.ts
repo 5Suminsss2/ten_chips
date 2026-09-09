@@ -47,6 +47,11 @@ export default defineConfig(async () => {
     server: {
       host: "0.0.0.0",
       allowedHosts: ["terminal.local"],
+      // 개발 중 /api 요청을 FastAPI 백엔드(:8000)로 넘긴다.
+      // 브라우저는 같은 오리진으로 보므로 CORS·쿠키 문제가 없다.
+      proxy: {
+        "/api": { target: "http://localhost:8000", changeOrigin: true },
+      },
       ...(isCodexSeatbeltSandbox
         ? { watch: { useFsEvents: false, usePolling: true } }
         : {}),
