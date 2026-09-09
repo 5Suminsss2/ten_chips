@@ -1,14 +1,16 @@
 "use client";
 
+import { useEffect } from "react";
 import { Pencil } from "lucide-react";
 import { dateLabel } from "@/app/_lib/tracks";
 import { tracklistEntries, useAdmin } from "@/app/_lib/admin-context";
 
 export function BoxTracklist({ day, onOpen, onEditDay }: { day: number; onOpen: (day: number) => void; onEditDay: (day: number) => void }) {
-  const { isAdmin, days } = useAdmin();
+  const { isAdmin, monthCounts, getDay, ensureDay } = useAdmin();
+  useEffect(() => { ensureDay(day); }, [day, ensureDay]);
   const date = dateLabel(day);
-  const list = tracklistEntries(day, days);
-  const isCustom = Boolean(days[day]?.length);
+  const list = tracklistEntries(getDay(day), day);
+  const isCustom = (monthCounts[day] ?? 0) > 0;
   return (
     <div className="mt-9">
       <div className="flex items-center justify-between border-b border-black pb-1">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, Plus, Trash2, Search } from "lucide-react";
 import { boxSymbols, dateLabel, TRACKS_PER_BOX, type Track } from "@/app/_lib/tracks";
 import { useAdmin } from "@/app/_lib/admin-context";
@@ -32,7 +32,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export function AdminView({ initialDay, onClose }: { initialDay: number; onClose: () => void }) {
-  const { days } = useAdmin();
+  const { monthCounts } = useAdmin();
   const [day, setDay] = useState(initialDay);
 
   return (
@@ -48,7 +48,7 @@ export function AdminView({ initialDay, onClose }: { initialDay: number; onClose
       <p className="mt-5 text-xs uppercase tracking-[.2em] text-black/50">날짜 선택</p>
       <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
         {boxSymbols.map((_, i) => {
-          const count = days[i]?.length ?? 0;
+          const count = monthCounts[i] ?? 0;
           const activeDay = i === day;
           return (
             <button
@@ -69,11 +69,24 @@ export function AdminView({ initialDay, onClose }: { initialDay: number; onClose
 }
 
 function DayEditor({ day }: { day: number }) {
-  const { days, saveDay, clearDay } = useAdmin();
-  const [rows, setRows] = useState<Row[]>(() => (days[day]?.length ? days[day].map(toRow) : [emptyRow()]));
+  const { getDay, ensureDay, saveDay, clearDay } = useAdmin();
+  const cached = getDay(day); // Track[] | null | undefined
+  const [rows, setRows] = useState<Row[]>([emptyRow()]);
+  const [ready, setReady] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [searching, setSearching] = useState<number | null>(null);
-  const hasSaved = Boolean(days[day]?.length);
+  const [saving, setSaving] = useState(false);
+  const hasSaved = (cached?.length ?? 0) > 0;
+
+  useEffect(() => { ensureDay(day); }, [day, ensureDay]);
+
+  // 서버에서 이 날짜 데이터가 도착하면 폼을 한 번 채운다.
+  useEffect(() => {
+    if (ready || cached === undefined) return;
+    /* eslint-disable-next-line react-hooks/set-state-in-effect -- 서버 로드 후 1회 초기화 */
+    setRows(cached && cached.length ? cached.map(toRow) : [emptyRow()]);
+    setReady(true);
+  }, [cached, ready]);
 
   const update = (idx: number, patch: Partial<Row>) => {
     setRows((r) => r.map((row, i) => (i === idx ? { ...row, ...patch } : row)));
@@ -105,31 +118,35 @@ function DayEditor({ day }: { day: number }) {
     if (row && row.title.trim() && row.artist.trim() && !parseYouTubeId(row.youtubeId)) runSearch(idx);
   };
 
-  const save = () => {
+  const save = async () => {
+    if (saving) return;
     const cleaned = rows.filter((r) => !isBlank(r)).map(toTrack);
     if (!cleaned.length) {
       setStatus({ ok: false, msg: "최소 한 곡 이상 입력해 주세요." });
       return;
     }
-    const missingTitle = cleaned.some((t) => !t.title);
-    if (missingTitle) {
+    if (cleaned.some((t) => !t.title)) {
       setStatus({ ok: false, msg: "제목이 없는 곡이 있습니다. 제목은 필수입니다." });
       return;
     }
-    const ok = saveDay(day, cleaned);
-    setStatus({
-      ok,
-      msg: ok
-        ? `${dateLabel(day)} 트랙리스트를 저장했어요. (${cleaned.length}곡)`
-        : "메모리에는 반영했지만 브라우저 저장에 실패했습니다(용량 초과).",
-    });
+    setSaving(true);
+    const res = await saveDay(day, cleaned);
+    setSaving(false);
+    setStatus({ ok: res.ok, msg: res.ok ? `${dateLabel(day)} ${res.msg}` : res.msg });
   };
 
-  const reset = () => {
-    clearDay(day);
+  const reset = async () => {
+    if (saving) return;
+    setSaving(true);
+    await clearDay(day);
+    setSaving(false);
     setRows([emptyRow()]);
     setStatus({ ok: true, msg: `${dateLabel(day)}의 등록 내용을 비웠어요.` });
   };
+
+  if (!ready) {
+    return <p className="mt-8 text-sm text-black/50">불러오는 중…</p>;
+  }
 
   return (
     <div className="mt-6">
@@ -137,12 +154,12 @@ function DayEditor({ day }: { day: number }) {
         <p className="text-sm font-bold">{dateLabel(day)} · {rows.length}/{TRACKS_PER_BOX}곡</p>
         <div className="flex gap-2">
           {hasSaved && (
-            <button onClick={reset} className="border border-black/20 px-3 py-2 text-xs font-bold uppercase tracking-[.14em] transition hover:bg-black/5">
+            <button onClick={reset} disabled={saving} className="border border-black/20 px-3 py-2 text-xs font-bold uppercase tracking-[.14em] transition hover:bg-black/5 disabled:opacity-50">
               이 날짜 비우기
             </button>
           )}
-          <button onClick={save} className="bg-black px-5 py-2 text-xs font-bold uppercase tracking-[.14em] text-white transition hover:bg-[#b5121b]">
-            저장
+          <button onClick={save} disabled={saving} className="bg-black px-5 py-2 text-xs font-bold uppercase tracking-[.14em] text-white transition hover:bg-[#b5121b] disabled:opacity-50">
+            {saving ? "저장 중…" : "저장"}
           </button>
         </div>
       </div>

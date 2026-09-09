@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     admin_password: str = "change-me"
     youtube_api_key: str = ""
     session_ttl_days: int = 7
+    cookie_secure: bool = False  # HTTPS 프로덕션에선 true
     database_url: str = "sqlite:///./tentracks.db"
     cors_origins: str = ""  # 쉼표로 구분
 

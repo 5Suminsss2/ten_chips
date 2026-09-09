@@ -4,7 +4,8 @@ from sqlmodel import Field, Relationship, SQLModel
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    # SQLite 는 tz 정보를 저장하지 않으므로 비교가 어긋나지 않게 naive UTC 로 통일한다.
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Box(SQLModel, table=True):
@@ -39,4 +40,9 @@ class Track(SQLModel, table=True):
     box: Box | None = Relationship(back_populates="tracks")
 
 
-# 참고: 관리자 세션(AdminSession) 테이블과 인증은 2단계에서 추가한다.
+class AdminSession(SQLModel, table=True):
+    """관리자 로그인 세션. id 를 HttpOnly 쿠키에 담는다."""
+
+    id: str = Field(primary_key=True)  # secrets.token_hex(32)
+    created_at: datetime = Field(default_factory=utcnow)
+    expires_at: datetime

@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .db import init_db
-from .routers import boxes
+from .routers import admin, boxes
 
 
 @asynccontextmanager
@@ -29,6 +29,7 @@ if settings.cors_origin_list:
     )
 
 app.include_router(boxes.router)
+app.include_router(admin.router)
 
 
 @app.get("/api/health", tags=["meta"])

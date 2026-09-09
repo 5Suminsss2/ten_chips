@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, Home, Menu, Play, Search, Settings, UserRound } from "lucide-react";
 import { dateLabel, dateLabelLong, todayIndex, tracks } from "@/app/_lib/tracks";
 import { resolveDayTracks, useAdmin } from "@/app/_lib/admin-context";
@@ -12,7 +12,7 @@ import { CollectionView } from "@/app/_components/collection-view";
 import { AdminView } from "@/app/_components/admin-view";
 
 export function HomeShell() {
-  const { isAdmin, days } = useAdmin();
+  const { isAdmin, getDay, ensureDay } = useAdmin();
   const [view, setView] = useState<"home" | "listen" | "collection" | "admin">("home");
   const today = todayIndex();
   const [openDay, setOpenDay] = useState(today);
@@ -20,7 +20,8 @@ export function HomeShell() {
   const [trackIndex, setTrackIndex] = useState(0);
   const [liked, setLiked] = useState(false);
 
-  const dayTracks = resolveDayTracks(openDay, days) ?? tracks;
+  useEffect(() => { ensureDay(openDay); }, [openDay, ensureDay]);
+  const dayTracks = resolveDayTracks(getDay(openDay)) ?? tracks;
   const total = dayTracks.length;
   const index = Math.min(trackIndex, total - 1);
   const next = () => { setTrackIndex(() => Math.min(index + 1, total - 1)); setLiked(false); };

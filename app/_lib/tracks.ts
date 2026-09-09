@@ -48,6 +48,19 @@ export const boxSymbols = Array.from({ length: BOX_COUNT }, (_, i) => SYMBOL_POO
 /* 오늘 날짜(1일 → 0)를 상자 인덱스로 변환 */
 export const todayIndex = (now: Date = new Date()) => Math.min(Math.max(now.getDate() - 1, 0), BOX_COUNT - 1);
 
+/* 상자 인덱스(0 = 1일) → 이번 달 실제 날짜 'YYYY-MM-DD' (서버 API 키) */
+export const dateKey = (day: number, now: Date = new Date()) =>
+  `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(day + 1).padStart(2, "0")}`;
+
+/* 'YYYY-MM-DD' → 상자 인덱스(0-based) */
+export const dayIndexFromKey = (isoDate: string) => Number(isoDate.slice(8, 10)) - 1;
+
+/* 이번 달 [첫날, 말일] 키 */
+export const monthRange = (now: Date = new Date()): [string, string] => [
+  dateKey(0, now),
+  dateKey(daysInMonth(now) - 1, now),
+];
+
 export const tracklistFor = (day: number) => boxTracklist.map((_, i) => boxTracklist[(i + day) % boxTracklist.length]);
 
 /* "07 SEP" 형태. 월은 실제 현재 월을 따른다. */

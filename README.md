@@ -1,39 +1,43 @@
 # TEN TRACKS
 
-매일 낯선 장르의 음악 10곡을 발견하고 날짜별 음악 상자로 수집하는 UI 프로토타입입니다.
+매일 낯선 장르의 음악 10곡을 날짜별 "음악 상자"로 담는 앱입니다.
+프론트엔드(React)와 백엔드(FastAPI)로 나뉩니다.
 
-## 기술 스택
+## 구성
 
-- React 19
-- TypeScript
-- Tailwind CSS 4
-- Vinext / Vite
-- Lucide React
+| | 스택 | 위치 |
+|---|---|---|
+| 프론트 | React 19 · TypeScript · Tailwind 4 · Vinext/Vite | `app/` |
+| 백엔드 | FastAPI · SQLModel · SQLite | `server/` |
+| 재생 | YouTube IFrame Player | `app/_lib/use-youtube-player.ts` |
 
-## 실행 방법
+## 실행 (개발)
 
-Node.js 22 이상이 필요합니다.
+두 개를 같이 띄웁니다. 프론트의 `/api` 요청은 vite 프록시가 `:8000`(백엔드)으로 넘깁니다.
 
 ```bash
+# 터미널 A — 백엔드
+cd server
+python -m venv .venv
+.venv\Scripts\activate            # macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+copy .env.example .env            # macOS/Linux: cp .env.example .env
+python -m app.seed                # 오늘 날짜에 데모 4곡
+uvicorn app.main:app --reload --port 8000   # http://localhost:8000/docs
+
+# 터미널 B — 프론트
 npm install
 npm run dev
 ```
 
-터미널에 표시되는 로컬 주소를 브라우저에서 열면 됩니다.
-Windows PowerShell과 명령 프롬프트에서도 같은 명령어를 사용합니다.
+Node.js 22 이상, Python 3.12 이상이 필요합니다. Windows PowerShell·명령 프롬프트에서도 같은 명령을 씁니다.
 
-## 주요 파일
+## 화면
 
-- `app/page.tsx`: 화면 구성, 샘플 음악 데이터, 화면 전환과 재생 인터랙션
-- `app/globals.css`: 색상, 종이 질감, 상자와 카드 스타일
-- `app/layout.tsx`: 사이트 제목과 메타데이터
-- `public/album-palm.png`: 감상 화면 앨범 이미지
+- 오늘의 음악 상자 / 곡 감상(유튜브 재생) / 월별 컬렉션 / 모바일·데스크톱 반응형 내비
+- 관리자 트랙리스트 편집: 헤더 자물쇠 버튼 → 비밀번호(`server/.env` 의 `ADMIN_PASSWORD`, 기본 `change-me`)
 
-## 현재 구현된 화면
+## 데이터
 
-- 오늘의 음악 상자
-- 곡 감상 화면
-- 월별 컬렉션
-- 모바일/데스크톱 반응형 내비게이션
-
-현재 음악 데이터와 재생 상태는 프론트엔드 샘플입니다. 실제 음원 재생을 붙이려면 `app/page.tsx`의 `tracks` 데이터에 음원 URL을 추가하고 `HTMLAudioElement` 또는 음악 서비스 API를 연결하면 됩니다.
+트랙리스트는 백엔드 DB(`server/tentracks.db`)에 날짜별로 저장됩니다. 관리자가 편집하면 서버에
+반영되고, 등록본이 없는 날짜는 자동 생성 목록이 보입니다. API·구축 계획은 `server/README.md` 참고.

@@ -3,7 +3,7 @@ from sqlmodel import Session, col, func, select
 
 from ..db import get_session
 from ..models import Box, Track
-from ..schemas import BoxOut, BoxSummary, TrackOut, parse_tags
+from ..schemas import BoxOut, BoxSummary, box_out
 
 router = APIRouter(prefix="/api/boxes", tags=["boxes"])
 
@@ -23,22 +23,7 @@ def get_box(
     tracks = session.exec(
         select(Track).where(Track.box_date == date).order_by(Track.position)
     ).all()
-
-    return BoxOut(
-        date=box.date,
-        note=box.note,
-        tracks=[
-            TrackOut(
-                position=t.position,
-                title=t.title,
-                artist=t.artist,
-                note=t.note,
-                youtube_id=t.youtube_id,
-                tags=parse_tags(t.tags_json),
-            )
-            for t in tracks
-        ],
-    )
+    return box_out(box.date, box.note, tracks)
 
 
 @router.get("", response_model=list[BoxSummary])
