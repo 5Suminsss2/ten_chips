@@ -29,7 +29,7 @@ export function TrackCard({
       ) : isCenter ? (
         <div className="mt-3 grid h-40 w-full place-items-center border border-black/15 bg-black px-4 text-center text-[10px] font-bold uppercase leading-relaxed tracking-[.14em] text-white/60 md:h-44">유튜브 영상 미연결</div>
       ) : (
-        <img src={track.image || "/album-palm.png"} alt={track.title ? `${track.title} 앨범 아트` : "앨범 아트"} className="mt-3 h-40 w-full border border-black/15 object-cover grayscale md:h-44" />
+        <img src="/album-palm.png" alt={track.title ? `${track.title} 앨범 아트` : "앨범 아트"} className="mt-3 h-40 w-full border border-black/15 object-cover grayscale md:h-44" />
       )}
       <h2 className="mt-4 text-xl font-bold md:text-2xl">{track.title}</h2><p className="text-black/55">{track.artist}</p>
       <div className="mt-2 flex flex-wrap gap-2">{track.tags.map(tag => <span key={tag} className="border border-black/40 px-2 py-1 text-[11px] font-bold">{tag}</span>)}</div>

@@ -3,7 +3,6 @@ export type Track = {
   artist: string;
   tags: string[];
   note: string;
-  image?: string;
   /* 유튜브 영상 ID (watch?v= 뒤의 값). 비어 있으면 재생 비활성 */
   youtubeId?: string;
 };

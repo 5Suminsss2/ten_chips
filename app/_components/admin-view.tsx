@@ -1,24 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ImagePlus, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Search } from "lucide-react";
 import { boxSymbols, dateLabel, TRACKS_PER_BOX, type Track } from "@/app/_lib/tracks";
 import { useAdmin } from "@/app/_lib/admin-context";
-import { fileToDataUrl } from "@/app/_lib/image";
+import { hasYouTubeApiKey, parseYouTubeId, searchYouTube } from "@/app/_lib/youtube-search";
 
 /* 편집 중에는 키워드를 문자열로 다루고, 저장 시 Track으로 변환한다. */
-type Row = { title: string; artist: string; keywords: string; note: string; image: string };
-const emptyRow = (): Row => ({ title: "", artist: "", keywords: "", note: "", image: "" });
-const toRow = (t: Track): Row => ({ title: t.title, artist: t.artist, keywords: t.tags.join(", "), note: t.note, image: t.image ?? "" });
+type Row = { title: string; artist: string; keywords: string; note: string; youtubeId: string };
+const emptyRow = (): Row => ({ title: "", artist: "", keywords: "", note: "", youtubeId: "" });
+const toRow = (t: Track): Row => ({ title: t.title, artist: t.artist, keywords: t.tags.join(", "), note: t.note, youtubeId: t.youtubeId ?? "" });
 const parseTags = (s: string) => s.split(",").map((x) => x.replace(/\s+/g, " ").trim().toUpperCase()).filter(Boolean);
 const toTrack = (r: Row): Track => ({
   title: r.title.trim(),
   artist: r.artist.trim(),
   tags: parseTags(r.keywords),
   note: r.note.trim(),
-  image: r.image.trim() || undefined,
+  youtubeId: parseYouTubeId(r.youtubeId) || undefined,
 });
-const isBlank = (r: Row) => !r.title.trim() && !r.artist.trim() && !r.note.trim() && !r.image.trim() && !parseTags(r.keywords).length;
+const isBlank = (r: Row) => !r.title.trim() && !r.artist.trim() && !r.note.trim() && !parseTags(r.keywords).length;
 
 const inputCls = "w-full border border-black/20 bg-white px-3 py-2 text-sm outline-none focus:border-[#b5121b]";
 
@@ -72,6 +72,7 @@ function DayEditor({ day }: { day: number }) {
   const { days, saveDay, clearDay } = useAdmin();
   const [rows, setRows] = useState<Row[]>(() => (days[day]?.length ? days[day].map(toRow) : [emptyRow()]));
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [searching, setSearching] = useState<number | null>(null);
   const hasSaved = Boolean(days[day]?.length);
 
   const update = (idx: number, patch: Partial<Row>) => {
@@ -81,13 +82,27 @@ function DayEditor({ day }: { day: number }) {
   const addRow = () => setRows((r) => (r.length >= TRACKS_PER_BOX ? r : [...r, emptyRow()]));
   const removeRow = (idx: number) => setRows((r) => (r.length === 1 ? [emptyRow()] : r.filter((_, i) => i !== idx)));
 
-  const pickImage = async (idx: number, file: File | undefined) => {
-    if (!file) return;
+  /* 제목+아티스트로 공식 음원 영상을 검색해 youtubeId를 채운다 */
+  const runSearch = async (idx: number) => {
+    const row = rows[idx];
+    if (!row || !row.title.trim() || searching !== null) return;
+    setSearching(idx);
+    setStatus(null);
     try {
-      update(idx, { image: await fileToDataUrl(file) });
+      const hit = await searchYouTube(row.title, row.artist);
+      setRows((r) => r.map((x, k) => (k === idx ? { ...x, youtubeId: hit.videoId } : x)));
     } catch (e) {
-      setStatus({ ok: false, msg: e instanceof Error ? e.message : "이미지 처리 중 오류가 발생했습니다." });
+      setStatus({ ok: false, msg: e instanceof Error ? e.message : "유튜브 검색에 실패했습니다." });
+    } finally {
+      setSearching((s) => (s === idx ? null : s));
     }
+  };
+
+  /* 곡을 입력하면(제목·아티스트가 채워지면) 영상이 없을 때 자동으로 한 번 검색 */
+  const maybeAutoSearch = (idx: number) => {
+    if (!hasYouTubeApiKey() || searching !== null) return;
+    const row = rows[idx];
+    if (row && row.title.trim() && row.artist.trim() && !parseYouTubeId(row.youtubeId)) runSearch(idx);
   };
 
   const save = () => {
@@ -106,7 +121,7 @@ function DayEditor({ day }: { day: number }) {
       ok,
       msg: ok
         ? `${dateLabel(day)} 트랙리스트를 저장했어요. (${cleaned.length}곡)`
-        : "메모리에는 반영했지만 브라우저 저장에 실패했습니다(용량 초과). 이미지 개수를 줄여보세요.",
+        : "메모리에는 반영했지만 브라우저 저장에 실패했습니다(용량 초과).",
     });
   };
 
@@ -132,6 +147,12 @@ function DayEditor({ day }: { day: number }) {
         </div>
       </div>
 
+      {!hasYouTubeApiKey() && (
+        <p className="mt-3 border border-black/20 px-3 py-2 text-xs text-black/55">
+          유튜브 자동 검색이 꺼져 있어요. <code>.env</code>에 <code>VITE_YOUTUBE_API_KEY</code>를 설정하면 곡 입력 시 공식 음원 영상을 자동으로 찾아줍니다. 지금은 아래 칸에 유튜브 링크/ID를 직접 붙여넣으세요.
+        </p>
+      )}
+
       {status && (
         <p className={`mt-3 border px-3 py-2 text-sm font-semibold ${status.ok ? "border-[#2f7d4f] text-[#2f7d4f]" : "border-[#b5121b] text-[#b5121b]"}`}>
           {status.msg}
@@ -141,6 +162,7 @@ function DayEditor({ day }: { day: number }) {
       <div className="mt-4 space-y-4">
         {rows.map((row, i) => {
           const tags = parseTags(row.keywords);
+          const vid = parseYouTubeId(row.youtubeId);
           return (
             <div key={i} className="border border-black/15 bg-[#faf8f2] p-4 md:p-5">
               <div className="flex items-center justify-between">
@@ -150,35 +172,40 @@ function DayEditor({ day }: { day: number }) {
                 </button>
               </div>
 
-              <div className="mt-3 grid gap-4 md:grid-cols-[160px_minmax(0,1fr)]">
-                <div>
-                  <div className="grid aspect-square w-full place-items-center overflow-hidden border border-black/15 bg-white">
-                    {row.image
-                      ? <img src={row.image} alt="" className="h-full w-full object-cover grayscale" />
-                      : <span className="text-[11px] font-bold uppercase tracking-[.14em] text-black/35">No image</span>}
+              <div className="mt-3 grid gap-4 md:grid-cols-[220px_minmax(0,1fr)]">
+                <div className="space-y-2">
+                  <div className="grid aspect-video w-full place-items-center overflow-hidden border border-black/15 bg-black text-white/50">
+                    {vid
+                      ? <img src={`https://img.youtube.com/vi/${vid}/mqdefault.jpg`} alt="" className="h-full w-full object-cover" />
+                      : <span className="text-[11px] font-bold uppercase tracking-[.14em]">영상 없음</span>}
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <label className="flex cursor-pointer items-center gap-1.5 border border-black/20 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[.12em] transition hover:bg-black/5">
-                      <ImagePlus size={13} /> 사진 선택
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => pickImage(i, e.target.files?.[0])} />
-                    </label>
-                    {row.image && (
-                      <button onClick={() => update(i, { image: "" })} className="border border-black/20 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[.12em] transition hover:bg-black/5">
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => runSearch(i)}
+                      disabled={!row.title.trim() || searching !== null}
+                      className="flex items-center gap-1.5 border border-black/20 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[.12em] transition hover:bg-black/5 disabled:opacity-40"
+                    >
+                      <Search size={13} /> {searching === i ? "찾는 중…" : vid ? "다시 찾기" : "유튜브에서 찾기"}
+                    </button>
+                    {vid && (
+                      <button type="button" onClick={() => update(i, { youtubeId: "" })} className="border border-black/20 px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-[.12em] transition hover:bg-black/5">
                         제거
                       </button>
                     )}
                   </div>
                   <input
-                    value={row.image}
-                    onChange={(e) => update(i, { image: e.target.value })}
-                    placeholder="또는 이미지 URL"
-                    className="mt-2 w-full border border-black/20 bg-white px-2 py-1.5 text-xs outline-none focus:border-[#b5121b]"
+                    value={row.youtubeId}
+                    onChange={(e) => update(i, { youtubeId: e.target.value })}
+                    onBlur={(e) => { const id = parseYouTubeId(e.target.value); if (id && id !== e.target.value) update(i, { youtubeId: id }); }}
+                    placeholder="또는 유튜브 링크 / ID"
+                    className="w-full border border-black/20 bg-white px-2 py-1.5 text-xs outline-none focus:border-[#b5121b]"
                   />
                 </div>
 
                 <div className="space-y-3">
-                  <Field label="제목"><input value={row.title} onChange={(e) => update(i, { title: e.target.value })} className={inputCls} placeholder="곡 제목" /></Field>
-                  <Field label="아티스트"><input value={row.artist} onChange={(e) => update(i, { artist: e.target.value })} className={inputCls} placeholder="아티스트명" /></Field>
+                  <Field label="제목"><input value={row.title} onChange={(e) => update(i, { title: e.target.value })} onBlur={() => maybeAutoSearch(i)} className={inputCls} placeholder="곡 제목" /></Field>
+                  <Field label="아티스트"><input value={row.artist} onChange={(e) => update(i, { artist: e.target.value })} onBlur={() => maybeAutoSearch(i)} className={inputCls} placeholder="아티스트명" /></Field>
                   <Field label="키워드"><input value={row.keywords} onChange={(e) => update(i, { keywords: e.target.value })} className={inputCls} placeholder="쉼표로 구분 · 예: CITY POP, JAPAN" /></Field>
                   {tags.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
