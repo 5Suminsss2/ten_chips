@@ -18,7 +18,6 @@ export function HomeShell() {
   const [openDay, setOpenDay] = useState(today);
   const [adminDay, setAdminDay] = useState(today);
   const [trackIndex, setTrackIndex] = useState(0);
-  const [playing, setPlaying] = useState(false);
   const [liked, setLiked] = useState(false);
 
   const dayTracks = resolveDayTracks(openDay, days) ?? tracks;
@@ -28,7 +27,7 @@ export function HomeShell() {
   const prev = () => { setTrackIndex(() => Math.max(index - 1, 0)); setLiked(false); };
   const selectTrack = (i: number) => { setTrackIndex(i); setLiked(false); };
 
-  const openListen = (day: number) => { setOpenDay(day); setTrackIndex(0); setLiked(false); setPlaying(false); setView("listen"); };
+  const openListen = (day: number) => { setOpenDay(day); setTrackIndex(0); setLiked(false); setView("listen"); };
   const editDay = (day: number) => { setAdminDay(day); setView("admin"); };
 
   // 관리자가 아니면 admin 뷰는 렌더하지 않음
@@ -56,7 +55,7 @@ export function HomeShell() {
           </aside>
           <section className="min-w-0">
             {activeView === "home" && <HomeView onOpen={openListen} onCollection={() => setView("collection")} onEditDay={editDay} />}
-            {activeView === "listen" && <ListenView tracks={dayTracks} index={index} playing={playing} liked={liked} date={dateLabel(openDay)} onBack={() => setView("home")} onToggle={() => setPlaying(!playing)} onLike={() => setLiked(!liked)} onNext={next} onPrev={prev} onSelect={selectTrack} />}
+            {activeView === "listen" && <ListenView tracks={dayTracks} index={index} liked={liked} date={dateLabel(openDay)} onBack={() => setView("home")} onLike={() => setLiked(!liked)} onNext={next} onPrev={prev} onSelect={selectTrack} />}
             {activeView === "collection" && <CollectionView onOpenToday={openListen} onEditDay={editDay} />}
             {activeView === "admin" && <AdminView initialDay={adminDay} onClose={() => setView("home")} />}
           </section>

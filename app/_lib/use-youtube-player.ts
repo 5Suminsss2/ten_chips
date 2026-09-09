@@ -29,21 +29,37 @@ function loadApi(): Promise<void> {
   return apiReady;
 }
 
+/* YT 오류 코드 → 사람이 읽을 메시지 */
+export function youtubeErrorText(code: number | null): string | null {
+  switch (code) {
+    case 2:
+      return "영상 ID가 잘못됐어요.";
+    case 5:
+      return "이 브라우저에서 재생할 수 없는 영상이에요.";
+    case 100:
+      return "삭제됐거나 비공개 영상이에요.";
+    case 101:
+    case 150:
+      return "이 영상은 외부 사이트 재생이 막혀 있어요. 다른 영상을 연결해 주세요.";
+    default:
+      return code == null ? null : "영상을 재생할 수 없어요.";
+  }
+}
+
 /**
  * 유튜브 IFrame 플레이어 뼈대.
  * setHost 를 "재생 위치" <div> 의 ref 로 넘긴다. 그 노드가 바뀌면(카드 캐러셀에서
  * 중앙 카드가 바뀌면) 플레이어를 그 자리에 다시 만든다 — iframe 은 부모가 바뀌면
  * 어차피 새로고침되므로 곡을 넘기면 영상도 다시 로드된다.
- * currentTime / duration 은 0.5초 폴링으로 갱신(진행바·시간 표시용).
- * 브라우저 자동재생 정책상 첫 재생은 클릭 핸들러 안에서 play() 를 동기 호출해야 소리가 난다.
+ * currentTime / duration / isPlaying 은 실제 플레이어 상태에서 읽는다.
+ * 자동재생 정책 때문에 첫 재생은 사용자 제스처가 필요하다 — 카드(썸네일 위)를 클릭하면
+ * 유튜브 iframe 이 직접 처리하고, 하단 버튼은 play()/pause() 를 동기 호출한다.
  */
 export function useYouTubePlayer({
   videoId,
-  playing,
   onEnded,
 }: {
   videoId?: string;
-  playing: boolean;
   onEnded?: () => void;
 }) {
   const playerRef = useRef<any>(null);
@@ -51,6 +67,8 @@ export function useYouTubePlayer({
   const [ready, setReady] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [playerState, setPlayerState] = useState(-1);
+  const [error, setError] = useState<number | null>(null);
   const onEndedRef = useRef(onEnded);
   useEffect(() => {
     onEndedRef.current = onEnded;
@@ -68,6 +86,8 @@ export function useYouTubePlayer({
     setReady(false);
     setCurrentTime(0);
     setDuration(0);
+    setPlayerState(-1);
+    setError(null);
   }, []);
 
   /* 재생 위치 노드가 붙거나 떨어질 때마다 플레이어를 새로 만든다 */
@@ -82,12 +102,14 @@ export function useYouTubePlayer({
         playerRef.current = new window.YT.Player(el, {
           width: "100%",
           height: "100%",
-          playerVars: { playsinline: 1, rel: 0, modestbranding: 1 },
+          playerVars: { playsinline: 1, rel: 0, modestbranding: 1, controls: 0, disablekb: 1, fs: 0 },
           events: {
             onReady: () => setReady(true),
             onStateChange: (e: any) => {
+              setPlayerState(e.data);
               if (e.data === window.YT.PlayerState.ENDED) onEndedRef.current?.();
             },
+            onError: (e: any) => setError(e.data),
           },
         });
         pollRef.current = setInterval(() => {
@@ -110,20 +132,16 @@ export function useYouTubePlayer({
     if (!p || !ready) return;
     setCurrentTime(0);
     setDuration(0);
+    setError(null);
     if (videoId) p.cueVideoById?.(videoId);
     else p.stopVideo?.();
   }, [videoId, ready]);
 
-  /* 재생 / 일시정지 */
-  useEffect(() => {
-    const p = playerRef.current;
-    if (!p || !ready || !videoId) return;
-    if (playing) p.playVideo?.();
-    else p.pauseVideo?.();
-  }, [playing, videoId, ready]);
-
   const play = () => playerRef.current?.playVideo?.();
   const pause = () => playerRef.current?.pauseVideo?.();
 
-  return { setHost, ready, currentTime, duration, play, pause };
+  /* 1 재생중 · 3 버퍼링 → 재생 상태로 취급 */
+  const isPlaying = playerState === 1 || playerState === 3;
+
+  return { setHost, ready, currentTime, duration, isPlaying, error, play, pause };
 }
