@@ -2,11 +2,15 @@
 
 import { useRef, useState } from "react";
 import { ChevronLeft, Heart, Pause, Play, SkipBack, SkipForward } from "lucide-react";
-import { dateLabel, todayIndex, type Track } from "@/app/_lib/tracks";
+import { dateLabel, formatTime, todayIndex, type Track } from "@/app/_lib/tracks";
 import { TrackCard } from "@/app/_components/track-card";
+import { useYouTubePlayer } from "@/app/_lib/use-youtube-player";
 
 export function ListenView({ tracks, index, playing, liked, date = dateLabel(todayIndex()), onBack, onToggle, onLike, onNext, onPrev, onSelect }: { tracks: Track[]; index: number; playing: boolean; liked: boolean; date?: string; onBack: () => void; onToggle: () => void; onLike: () => void; onNext: () => void; onPrev: () => void; onSelect: (i: number) => void }) {
   const total = tracks.length;
+  const currentId = tracks[index]?.youtubeId?.trim() || "";
+  const { hostRef, currentTime, duration, play, pause } = useYouTubePlayer({ videoId: currentId, playing, onEnded: onNext });
+  const pct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const [drag, setDrag] = useState(0);
   const [dragging, setDragging] = useState(false);
   const startX = useRef<number | null>(null);
@@ -49,6 +53,15 @@ export function ListenView({ tracks, index, playing, liked, date = dateLabel(tod
         </div>;
       })}
     </div>
-    <div className="mx-auto mt-6 max-w-md"><div className="h-1 bg-black/15"><div className="h-full w-[42%] bg-black" /></div><div className="mt-2 flex justify-between text-xs"><span>0:42</span><span>-3:18</span></div><div className="mt-5 flex items-center justify-center gap-5"><button onClick={onPrev} disabled={index === 0} className="icon-btn disabled:opacity-30" aria-label="이전 곡"><SkipBack /></button><button onClick={onToggle} className="grid size-16 place-items-center bg-black text-white" aria-label={playing ? "일시정지" : "재생"}>{playing ? <Pause /> : <Play />}</button><button onClick={onNext} disabled={index === total - 1} className="icon-btn disabled:opacity-30" aria-label="다음 곡"><SkipForward /></button><button onClick={onLike} className={`icon-btn ${liked ? "bg-[#b5121b] text-white" : ""}`} aria-label="의외로 좋아요"><Heart fill={liked ? "currentColor" : "none"} /></button></div><p className="mt-6 text-center text-xs uppercase tracking-[.2em]">Some songs find you.</p></div>
+    <div className="mx-auto mt-6 max-w-md">
+      <div className="relative mb-4 aspect-video overflow-hidden border border-black/15 bg-black">
+        <div ref={hostRef} className="absolute inset-0" />
+        {!currentId && <p className="absolute inset-0 grid place-items-center px-4 text-center text-[11px] font-bold uppercase tracking-[.16em] text-white/70">유튜브 영상 미연결</p>}
+      </div>
+      <div className="h-1 bg-black/15"><div className="h-full bg-black transition-[width] duration-500 ease-linear" style={{ width: `${pct}%` }} /></div>
+      <div className="mt-2 flex justify-between text-xs tabular-nums"><span>{formatTime(currentTime)}</span><span>-{formatTime(duration - currentTime)}</span></div>
+      <div className="mt-5 flex items-center justify-center gap-5"><button onClick={onPrev} disabled={index === 0} className="icon-btn disabled:opacity-30" aria-label="이전 곡"><SkipBack /></button><button onClick={() => { if (playing) pause(); else play(); onToggle(); }} disabled={!currentId} className="grid size-16 place-items-center bg-black text-white disabled:opacity-30" aria-label={playing ? "일시정지" : "재생"}>{playing ? <Pause /> : <Play />}</button><button onClick={onNext} disabled={index === total - 1} className="icon-btn disabled:opacity-30" aria-label="다음 곡"><SkipForward /></button><button onClick={onLike} className={`icon-btn ${liked ? "bg-[#b5121b] text-white" : ""}`} aria-label="의외로 좋아요"><Heart fill={liked ? "currentColor" : "none"} /></button></div>
+      <p className="mt-6 text-center text-xs uppercase tracking-[.2em]">Some songs find you.</p>
+    </div>
   </article>;
 }

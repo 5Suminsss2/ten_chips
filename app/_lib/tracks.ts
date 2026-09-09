@@ -1,10 +1,19 @@
-export type Track = { title: string; artist: string; tags: string[]; note: string; image?: string };
+export type Track = {
+  title: string;
+  artist: string;
+  tags: string[];
+  note: string;
+  image?: string;
+  /* 유튜브 영상 ID (watch?v= 뒤의 값). 비어 있으면 재생 비활성 */
+  youtubeId?: string;
+};
 
+/* youtubeId는 임시 예시 값 — 실제 곡 영상 ID로 교체하세요. */
 export const tracks: Track[] = [
-  { title: "La Llorona (World Mix)", artist: "Lila Downs", tags: ["WORLD", "FOLK", "MEXICO"], note: "익숙하지 않은 언어가 건네는 낯선 감정. 듣고 나면, 당신의 플레이리스트가 조금 더 넓어질 거예요." },
-  { title: "Sunset in Accra", artist: "Ebo Taylor", tags: ["AFROBEAT", "GHANA"], note: "기타 한 줄에서 시작되는 느긋한 리듬. 오늘의 두 번째 낯선 세계예요." },
-  { title: "Paper Moon", artist: "Mondo Grosso", tags: ["CITY POP", "JAPAN"], note: "반짝이는 도시의 밤과 조금 오래된 미래가 함께 흐르는 곡이에요." },
-  { title: "The Quiet Market", artist: "Nala Sinephro", tags: ["JAZZ", "AMBIENT"], note: "서두르지 않는 소리 사이에서 오늘 놓쳤던 여백을 발견해 보세요." },
+  { title: "La Llorona (World Mix)", artist: "Lila Downs", tags: ["WORLD", "FOLK", "MEXICO"], note: "익숙하지 않은 언어가 건네는 낯선 감정. 듣고 나면, 당신의 플레이리스트가 조금 더 넓어질 거예요.", youtubeId: "dQw4w9WgXcQ" },
+  { title: "Sunset in Accra", artist: "Ebo Taylor", tags: ["AFROBEAT", "GHANA"], note: "기타 한 줄에서 시작되는 느긋한 리듬. 오늘의 두 번째 낯선 세계예요.", youtubeId: "kJQP7kiw5Fk" },
+  { title: "Paper Moon", artist: "Mondo Grosso", tags: ["CITY POP", "JAPAN"], note: "반짝이는 도시의 밤과 조금 오래된 미래가 함께 흐르는 곡이에요.", youtubeId: "9bZkp7q19f0" },
+  { title: "The Quiet Market", artist: "Nala Sinephro", tags: ["JAZZ", "AMBIENT"], note: "서두르지 않는 소리 사이에서 오늘 놓쳤던 여백을 발견해 보세요.", youtubeId: "" },
 ];
 
 /* 상자 심볼 기본 풀 — 한 달 길이만큼 순환해서 사용한다 */
@@ -47,3 +56,9 @@ export const dateLabel = (day: number, now: Date = new Date()) => `${String(day 
 
 /* "07 September" 형태. */
 export const dateLabelLong = (day: number, now: Date = new Date()) => `${String(day + 1).padStart(2, "0")} ${MONTHS_LONG[now.getMonth()]}`;
+
+/* 초 → "M:SS" (음수·NaN은 0으로) */
+export const formatTime = (sec: number) => {
+  const s = Number.isFinite(sec) && sec > 0 ? sec : 0;
+  return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+};
