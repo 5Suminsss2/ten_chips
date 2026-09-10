@@ -36,38 +36,75 @@ export const TRACKS_PER_BOX = 10;
 const MONTHS_SHORT = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-/* 주어진 달의 일수 (28~31) */
-export const daysInMonth = (now: Date = new Date()) => new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+const p2 = (n: number) => String(n).padStart(2, "0");
 
-/* 이번 달 상자 개수 = 이번 달 일수 */
-export const BOX_COUNT = daysInMonth();
+/* ------------------------------------------------------------------ *
+ *  날짜 모델 — 내부 식별자는 'YYYY-MM-DD'(날짜), 월은 'YYYY-MM'.
+ *  전부 로컬 시간 기준. 서버 API 키와 그대로 맞는다.
+ * ------------------------------------------------------------------ */
 
-/* 상자 인덱스별 심볼 — 기본 풀을 순환해서 한 달 길이만큼 채운다 */
-export const boxSymbols = Array.from({ length: BOX_COUNT }, (_, i) => SYMBOL_POOL[i % SYMBOL_POOL.length]);
+/* 로컬 기준 오늘 'YYYY-MM-DD' */
+export const todayISO = (now: Date = new Date()) =>
+  `${now.getFullYear()}-${p2(now.getMonth() + 1)}-${p2(now.getDate())}`;
 
-/* 오늘 날짜(1일 → 0)를 상자 인덱스로 변환 */
-export const todayIndex = (now: Date = new Date()) => Math.min(Math.max(now.getDate() - 1, 0), BOX_COUNT - 1);
+/* 이번 달 'YYYY-MM' */
+export const currentMonth = (now: Date = new Date()) => `${now.getFullYear()}-${p2(now.getMonth() + 1)}`;
 
-/* 상자 인덱스(0 = 1일) → 이번 달 실제 날짜 'YYYY-MM-DD' (서버 API 키) */
-export const dateKey = (day: number, now: Date = new Date()) =>
-  `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(day + 1).padStart(2, "0")}`;
+/* 'YYYY-MM-DD' → 'YYYY-MM' */
+export const monthOf = (iso: string) => iso.slice(0, 7);
 
-/* 'YYYY-MM-DD' → 상자 인덱스(0-based) */
-export const dayIndexFromKey = (isoDate: string) => Number(isoDate.slice(8, 10)) - 1;
+/* 'YYYY-MM-DD' → 일(1..31) */
+export const dayOfMonth = (iso: string) => Number(iso.slice(8, 10));
 
-/* 이번 달 [첫날, 말일] 키 */
-export const monthRange = (now: Date = new Date()): [string, string] => [
-  dateKey(0, now),
-  dateKey(daysInMonth(now) - 1, now),
-];
+/* 'YYYY-MM' 의 일수 (28~31) */
+export const daysInMonth = (ym: string) => {
+  const [y, m] = ym.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+};
 
-export const tracklistFor = (day: number) => boxTracklist.map((_, i) => boxTracklist[(i + day) % boxTracklist.length]);
+/* 'YYYY-MM' → 그 달의 모든 날짜 ['YYYY-MM-01', … ] */
+export const monthDates = (ym: string) =>
+  Array.from({ length: daysInMonth(ym) }, (_, i) => `${ym}-${p2(i + 1)}`);
 
-/* "07 SEP" 형태. 월은 실제 현재 월을 따른다. */
-export const dateLabel = (day: number, now: Date = new Date()) => `${String(day + 1).padStart(2, "0")} ${MONTHS_SHORT[now.getMonth()]}`;
+/* 'YYYY-MM' 을 delta 개월 이동한 'YYYY-MM' */
+export const shiftMonth = (ym: string, delta: number) => {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${p2(d.getMonth() + 1)}`;
+};
 
-/* "07 September" 형태. */
-export const dateLabelLong = (day: number, now: Date = new Date()) => `${String(day + 1).padStart(2, "0")} ${MONTHS_LONG[now.getMonth()]}`;
+/* 'YYYY-MM' [첫날, 말일] 키 — 월 그리드 조회용 */
+export const monthRange = (ym: string): [string, string] => {
+  const dates = monthDates(ym);
+  return [dates[0], dates[dates.length - 1]];
+};
+
+/* 날짜별 심볼 — 일(1일 → 0)을 기준으로 기본 풀을 순환한다 */
+export const symbolFor = (iso: string) => SYMBOL_POOL[(dayOfMonth(iso) - 1) % SYMBOL_POOL.length];
+
+/* 자동 생성 트랙리스트 — 일자를 회전 오프셋으로 삼는다 */
+export const tracklistFor = (iso: string) => {
+  const off = dayOfMonth(iso) - 1;
+  return boxTracklist.map((_, i) => boxTracklist[(i + off) % boxTracklist.length]);
+};
+
+/* "07 SEP" 형태 */
+export const dateLabel = (iso: string) => `${iso.slice(8, 10)} ${MONTHS_SHORT[Number(iso.slice(5, 7)) - 1]}`;
+
+/* "07 September" 형태 */
+export const dateLabelLong = (iso: string) => `${iso.slice(8, 10)} ${MONTHS_LONG[Number(iso.slice(5, 7)) - 1]}`;
+
+/* "SEPTEMBER 2026" — 월 이동 UI 헤더용 */
+export const monthLabel = (ym: string) => {
+  const [y, m] = ym.split("-").map(Number);
+  return `${MONTHS_LONG[m - 1]} ${y}`;
+};
+
+/* iso 가 오늘 기준 과거 / 오늘 / 미래 중 무엇인지 */
+export const dayStatus = (iso: string, now: Date = new Date()): "past" | "today" | "future" => {
+  const t = todayISO(now);
+  return iso === t ? "today" : iso < t ? "past" : "future";
+};
 
 /* 초 → "M:SS" (음수·NaN은 0으로) */
 export const formatTime = (sec: number) => {

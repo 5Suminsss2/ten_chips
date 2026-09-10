@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Box, Home, Menu, Play, Search, Settings, UserRound } from "lucide-react";
-import { dateLabel, dateLabelLong, todayIndex, tracks } from "@/app/_lib/tracks";
+import { dateLabel, dateLabelLong, todayISO, tracks } from "@/app/_lib/tracks";
 import { resolveDayTracks, useAdmin } from "@/app/_lib/admin-context";
 import { AdminBar } from "@/app/_components/admin-bar";
 import { NavButton } from "@/app/_components/nav-button";
@@ -14,7 +14,7 @@ import { AdminView } from "@/app/_components/admin-view";
 export function HomeShell() {
   const { isAdmin, getDay, ensureDay } = useAdmin();
   const [view, setView] = useState<"home" | "listen" | "collection" | "admin">("home");
-  const today = todayIndex();
+  const today = todayISO();
   const [openDay, setOpenDay] = useState(today);
   const [adminDay, setAdminDay] = useState(today);
   const [trackIndex, setTrackIndex] = useState(0);
@@ -28,8 +28,8 @@ export function HomeShell() {
   const prev = () => { setTrackIndex(() => Math.max(index - 1, 0)); setLiked(false); };
   const selectTrack = (i: number) => { setTrackIndex(i); setLiked(false); };
 
-  const openListen = (day: number) => { setOpenDay(day); setTrackIndex(0); setLiked(false); setView("listen"); };
-  const editDay = (day: number) => { setAdminDay(day); setView("admin"); };
+  const openListen = (date: string) => { setOpenDay(date); setTrackIndex(0); setLiked(false); setView("listen"); };
+  const editDay = (date: string) => { setAdminDay(date); setView("admin"); };
 
   // 관리자가 아니면 admin 뷰는 렌더하지 않음
   const activeView = view === "admin" && !isAdmin ? "home" : view;
@@ -58,7 +58,7 @@ export function HomeShell() {
             {activeView === "home" && <HomeView onOpen={openListen} onCollection={() => setView("collection")} onEditDay={editDay} />}
             {activeView === "listen" && <ListenView tracks={dayTracks} index={index} liked={liked} date={dateLabel(openDay)} onBack={() => setView("home")} onLike={() => setLiked(!liked)} onNext={next} onPrev={prev} onSelect={selectTrack} />}
             {activeView === "collection" && <CollectionView onOpenToday={openListen} onEditDay={editDay} />}
-            {activeView === "admin" && <AdminView initialDay={adminDay} onClose={() => setView("home")} />}
+            {activeView === "admin" && <AdminView initialDate={adminDay} onClose={() => setView("home")} />}
           </section>
         </div>
         <nav className="fixed inset-x-4 bottom-4 z-20 flex justify-around border border-black/15 bg-[#faf8f2]/95 p-2 backdrop-blur lg:hidden">

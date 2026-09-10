@@ -2,11 +2,11 @@
 
 import { useRef, useState } from "react";
 import { ChevronLeft, Heart, Pause, Play, SkipBack, SkipForward } from "lucide-react";
-import { dateLabel, formatTime, todayIndex, type Track } from "@/app/_lib/tracks";
+import { dateLabel, formatTime, todayISO, type Track } from "@/app/_lib/tracks";
 import { TrackCard } from "@/app/_components/track-card";
 import { useYouTubePlayer, youtubeErrorText } from "@/app/_lib/use-youtube-player";
 
-export function ListenView({ tracks, index, liked, date = dateLabel(todayIndex()), onBack, onLike, onNext, onPrev, onSelect }: { tracks: Track[]; index: number; liked: boolean; date?: string; onBack: () => void; onLike: () => void; onNext: () => void; onPrev: () => void; onSelect: (i: number) => void }) {
+export function ListenView({ tracks, index, liked, date = dateLabel(todayISO()), onBack, onLike, onNext, onPrev, onSelect }: { tracks: Track[]; index: number; liked: boolean; date?: string; onBack: () => void; onLike: () => void; onNext: () => void; onPrev: () => void; onSelect: (i: number) => void }) {
   const total = tracks.length;
   const currentId = tracks[index]?.youtubeId?.trim() || "";
   const { setHost, currentTime, duration, isPlaying, error, play, pause } = useYouTubePlayer({ videoId: currentId, onEnded: onNext });

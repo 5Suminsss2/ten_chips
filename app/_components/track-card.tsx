@@ -1,11 +1,11 @@
-import { dateLabel, todayIndex, type Track } from "@/app/_lib/tracks";
+import { dateLabel, todayISO, type Track } from "@/app/_lib/tracks";
 
 // 곡 카드: 앨범아트 자리(사진 또는 유튜브 플레이어) + 제목 / 아티스트 + 키워드(tags) + 설명(note)
 export function TrackCard({
   track,
   index,
   dimmed,
-  date = dateLabel(todayIndex()),
+  date = dateLabel(todayISO()),
   isCenter = false,
   hasVideo = false,
   videoId = "",

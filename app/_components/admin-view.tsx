@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronLeft, Plus, Trash2, Search } from "lucide-react";
-import { boxSymbols, dateLabel, TRACKS_PER_BOX, type Track } from "@/app/_lib/tracks";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Search } from "lucide-react";
+import { dateLabel, monthDates, monthLabel, monthOf, shiftMonth, TRACKS_PER_BOX, type Track } from "@/app/_lib/tracks";
 import { useAdmin } from "@/app/_lib/admin-context";
 import { hasYouTubeApiKey, parseYouTubeId, searchYouTube } from "@/app/_lib/youtube-search";
 
@@ -31,9 +31,17 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function AdminView({ initialDay, onClose }: { initialDay: number; onClose: () => void }) {
-  const { monthCounts } = useAdmin();
-  const [day, setDay] = useState(initialDay);
+export function AdminView({ initialDate, onClose }: { initialDate: string; onClose: () => void }) {
+  const { monthCounts, ensureMonth } = useAdmin();
+  const [date, setDate] = useState(initialDate);
+  const [ym, setYm] = useState(monthOf(initialDate));
+
+  useEffect(() => { ensureMonth(ym); }, [ym, ensureMonth]);
+
+  const changeMonth = (next: string) => {
+    setYm(next);
+    setDate(monthOf(initialDate) === next ? initialDate : `${next}-01`);
+  };
 
   return (
     <article className="paper-panel p-6 md:p-9">
@@ -45,32 +53,40 @@ export function AdminView({ initialDay, onClose }: { initialDay: number; onClose
         </div>
       </div>
 
-      <p className="mt-5 text-xs uppercase tracking-[.2em] text-black/50">날짜 선택</p>
+      <div className="mt-5 flex items-center justify-between gap-3">
+        <p className="text-xs uppercase tracking-[.2em] text-black/50">날짜 선택</p>
+        <div className="flex items-center gap-2">
+          <button onClick={() => changeMonth(shiftMonth(ym, -1))} aria-label="지난 달" className="icon-btn"><ChevronLeft size={16} /></button>
+          <span className="brand min-w-[9rem] text-center text-lg tracking-[.06em]">{monthLabel(ym)}</span>
+          <button onClick={() => changeMonth(shiftMonth(ym, 1))} aria-label="다음 달" className="icon-btn"><ChevronRight size={16} /></button>
+        </div>
+      </div>
+
       <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
-        {boxSymbols.map((_, i) => {
-          const count = monthCounts[i] ?? 0;
-          const activeDay = i === day;
+        {monthDates(ym).map((d) => {
+          const count = monthCounts[d] ?? 0;
+          const activeDay = d === date;
           return (
             <button
-              key={i}
-              onClick={() => setDay(i)}
+              key={d}
+              onClick={() => setDate(d)}
               className={`flex shrink-0 flex-col items-start border px-3 py-2 transition ${activeDay ? "border-[#b5121b] bg-[#b5121b] text-white" : "border-black/20 bg-[#faf8f2] hover:bg-black/5"}`}
             >
-              <span className="brand text-lg leading-none">{dateLabel(i)}</span>
+              <span className="brand text-lg leading-none">{dateLabel(d)}</span>
               <span className="mt-1 text-[10px] font-bold uppercase tracking-[.12em] opacity-80">{count ? `${count}곡 등록` : "미등록"}</span>
             </button>
           );
         })}
       </div>
 
-      <DayEditor key={day} day={day} />
+      <DayEditor key={date} date={date} />
     </article>
   );
 }
 
-function DayEditor({ day }: { day: number }) {
+function DayEditor({ date }: { date: string }) {
   const { getDay, ensureDay, saveDay, clearDay } = useAdmin();
-  const cached = getDay(day); // Track[] | null | undefined
+  const cached = getDay(date); // Track[] | null | undefined
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -78,7 +94,7 @@ function DayEditor({ day }: { day: number }) {
   const [saving, setSaving] = useState(false);
   const hasSaved = (cached?.length ?? 0) > 0;
 
-  useEffect(() => { ensureDay(day); }, [day, ensureDay]);
+  useEffect(() => { ensureDay(date); }, [date, ensureDay]);
 
   // 서버에서 이 날짜 데이터가 도착하면 폼을 한 번 채운다.
   useEffect(() => {
@@ -130,18 +146,18 @@ function DayEditor({ day }: { day: number }) {
       return;
     }
     setSaving(true);
-    const res = await saveDay(day, cleaned);
+    const res = await saveDay(date, cleaned);
     setSaving(false);
-    setStatus({ ok: res.ok, msg: res.ok ? `${dateLabel(day)} ${res.msg}` : res.msg });
+    setStatus({ ok: res.ok, msg: res.ok ? `${dateLabel(date)} ${res.msg}` : res.msg });
   };
 
   const reset = async () => {
     if (saving) return;
     setSaving(true);
-    await clearDay(day);
+    await clearDay(date);
     setSaving(false);
     setRows([emptyRow()]);
-    setStatus({ ok: true, msg: `${dateLabel(day)}의 등록 내용을 비웠어요.` });
+    setStatus({ ok: true, msg: `${dateLabel(date)}의 등록 내용을 비웠어요.` });
   };
 
   if (!ready) {
@@ -151,7 +167,7 @@ function DayEditor({ day }: { day: number }) {
   return (
     <div className="mt-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-bold">{dateLabel(day)} · {rows.length}/{TRACKS_PER_BOX}곡</p>
+        <p className="text-sm font-bold">{dateLabel(date)} · {rows.length}/{TRACKS_PER_BOX}곡</p>
         <div className="flex gap-2">
           {hasSaved && (
             <button onClick={reset} disabled={saving} className="border border-black/20 px-3 py-2 text-xs font-bold uppercase tracking-[.14em] transition hover:bg-black/5 disabled:opacity-50">

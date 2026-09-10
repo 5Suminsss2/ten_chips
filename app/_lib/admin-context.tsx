@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { dateKey, dayIndexFromKey, monthRange, tracklistFor, type Track } from "@/app/_lib/tracks";
+import { currentMonth, monthRange, tracklistFor, type Track } from "@/app/_lib/tracks";
 
 /* ---------- 서버 응답/요청 형태 ---------- */
 type ApiTrack = { position: number; title: string; artist: string; note: string; youtubeId: string | null; tags: string[] };
@@ -30,11 +30,12 @@ type AdminValue = {
   authReady: boolean; // 초기 세션 확인이 끝났는지
   signIn: (password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
-  monthCounts: Record<number, number>; // 상자 인덱스 → 곡 수 (지표 표시용)
-  getDay: (day: number) => Track[] | null | undefined; // undefined=미로드, null=서버에 없음
-  ensureDay: (day: number) => void; // 미로드면 fetch 트리거
-  saveDay: (day: number, list: Track[]) => Promise<SaveResult>;
-  clearDay: (day: number) => Promise<void>;
+  monthCounts: Record<string, number>; // 'YYYY-MM-DD' → 곡 수 (지표 표시용)
+  ensureMonth: (ym: string) => void; // 'YYYY-MM' 지표를 아직 안 받았으면 fetch
+  getDay: (date: string) => Track[] | null | undefined; // undefined=미로드, null=서버에 없음
+  ensureDay: (date: string) => void; // 미로드면 fetch 트리거
+  saveDay: (date: string, list: Track[]) => Promise<SaveResult>;
+  clearDay: (date: string) => Promise<void>;
 };
 
 const AdminContext = createContext<AdminValue | null>(null);
@@ -52,26 +53,45 @@ export const resolveDayTracks = (dayTracks: Track[] | null | undefined): Track[]
 /* 상자 스파인에 표시할 목록(제목·아티스트) — 등록본 없으면 자동 생성 목록 */
 export const tracklistEntries = (
   dayTracks: Track[] | null | undefined,
-  day: number,
+  date: string,
 ): { title: string; artist: string }[] => {
   if (dayTracks && dayTracks.length) {
     return dayTracks.map((t) => ({ title: t.title.trim() || "(제목 미정)", artist: t.artist.trim() || "미상" }));
   }
-  return tracklistFor(day);
+  return tracklistFor(date);
 };
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [authReady, setAuthReady] = useState(false);
-  const [monthCounts, setMonthCounts] = useState<Record<number, number>>({});
-  const [dayCache, setDayCache] = useState<Record<number, Track[] | null>>({});
+  const [monthCounts, setMonthCounts] = useState<Record<string, number>>({});
+  const [dayCache, setDayCache] = useState<Record<string, Track[] | null>>({});
 
-  const loadedRef = useRef<Set<number>>(new Set());
-  const inflightRef = useRef<Set<number>>(new Set());
+  const loadedRef = useRef<Set<string>>(new Set());
+  const inflightRef = useRef<Set<string>>(new Set());
+  const monthsRef = useRef<Set<string>>(new Set());
 
-  const cacheDay = useCallback((day: number, tracks: Track[] | null) => {
-    loadedRef.current.add(day);
-    setDayCache((c) => ({ ...c, [day]: tracks }));
+  const cacheDay = useCallback((date: string, tracks: Track[] | null) => {
+    loadedRef.current.add(date);
+    setDayCache((c) => ({ ...c, [date]: tracks }));
+  }, []);
+
+  const ensureMonth = useCallback((ym: string) => {
+    if (monthsRef.current.has(ym)) return;
+    monthsRef.current.add(ym);
+    const [from, to] = monthRange(ym);
+    fetch(`/api/boxes?from=${from}&to=${to}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((rows: BoxSummary[]) => {
+        setMonthCounts((m) => {
+          const next = { ...m };
+          for (const row of rows) next[row.date] = row.trackCount;
+          return next;
+        });
+      })
+      .catch(() => {
+        monthsRef.current.delete(ym); // 실패하면 다시 시도할 수 있게
+      });
   }, []);
 
   /* 마운트: 로그인 상태 + 이번 달 지표 로드 */
@@ -81,31 +101,23 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       .catch(() => setIsAdmin(false))
       .finally(() => setAuthReady(true));
 
-    const [from, to] = monthRange();
-    fetch(`/api/boxes?from=${from}&to=${to}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((rows: BoxSummary[]) => {
-        const m: Record<number, number> = {};
-        for (const row of rows) m[dayIndexFromKey(row.date)] = row.trackCount;
-        setMonthCounts(m);
-      })
-      .catch(() => {});
-  }, []);
+    ensureMonth(currentMonth());
+  }, [ensureMonth]);
 
   const ensureDay = useCallback(
-    (day: number) => {
-      if (loadedRef.current.has(day) || inflightRef.current.has(day)) return;
-      inflightRef.current.add(day);
-      fetch(`/api/boxes/${dateKey(day)}`)
+    (date: string) => {
+      if (loadedRef.current.has(date) || inflightRef.current.has(date)) return;
+      inflightRef.current.add(date);
+      fetch(`/api/boxes/${date}`)
         .then((r) => (r.ok ? r.json() : r.status === 404 ? Promise.resolve(null) : Promise.reject(r)))
-        .then((box: ApiBox | null) => cacheDay(day, box ? box.tracks.map(toTrack) : null))
-        .catch(() => cacheDay(day, null))
-        .finally(() => inflightRef.current.delete(day));
+        .then((box: ApiBox | null) => cacheDay(date, box ? box.tracks.map(toTrack) : null))
+        .catch(() => cacheDay(date, null))
+        .finally(() => inflightRef.current.delete(date));
     },
     [cacheDay],
   );
 
-  const getDay = useCallback((day: number) => dayCache[day], [dayCache]);
+  const getDay = useCallback((date: string) => dayCache[date], [dayCache]);
 
   const signIn = useCallback(async (password: string) => {
     try {
@@ -131,9 +143,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const saveDay = useCallback(
-    async (day: number, list: Track[]): Promise<SaveResult> => {
+    async (date: string, list: Track[]): Promise<SaveResult> => {
       try {
-        const r = await fetch(`/api/admin/boxes/${dateKey(day)}`, {
+        const r = await fetch(`/api/admin/boxes/${date}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ note: "", tracks: list.map(toApiTrack) }),
@@ -148,8 +160,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         }
         const box = (await r.json()) as ApiBox;
         const tracks = box.tracks.map(toTrack);
-        cacheDay(day, tracks);
-        setMonthCounts((m) => ({ ...m, [day]: tracks.length }));
+        cacheDay(date, tracks);
+        setMonthCounts((m) => ({ ...m, [date]: tracks.length }));
         return { ok: true, msg: `트랙리스트를 저장했어요. (${tracks.length}곡)` };
       } catch {
         return { ok: false, msg: "서버에 연결하지 못했습니다." };
@@ -159,16 +171,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   );
 
   const clearDay = useCallback(
-    async (day: number) => {
+    async (date: string) => {
       try {
-        await fetch(`/api/admin/boxes/${dateKey(day)}`, { method: "DELETE" });
+        await fetch(`/api/admin/boxes/${date}`, { method: "DELETE" });
       } catch {
         /* 무시 */
       }
-      cacheDay(day, null);
+      cacheDay(date, null);
       setMonthCounts((m) => {
         const next = { ...m };
-        delete next[day];
+        delete next[date];
         return next;
       });
     },
@@ -177,7 +189,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AdminContext.Provider
-      value={{ isAdmin, authReady, signIn, signOut, monthCounts, getDay, ensureDay, saveDay, clearDay }}
+      value={{ isAdmin, authReady, signIn, signOut, monthCounts, ensureMonth, getDay, ensureDay, saveDay, clearDay }}
     >
       {children}
     </AdminContext.Provider>
