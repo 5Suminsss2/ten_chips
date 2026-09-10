@@ -55,7 +55,7 @@ def login(
         COOKIE_NAME,
         sid,
         httponly=True,
-        samesite="lax",
+        samesite=settings.cookie_samesite,
         secure=settings.cookie_secure,
         max_age=max_age,
         path="/",

@@ -1,3 +1,5 @@
+import logging
+import warnings
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -6,12 +8,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .routers import admin, boxes, youtube
 
+log = logging.getLogger("uvicorn.error")
+
+
+def _check_prod_config() -> None:
+    """배포로 보이는데(비-SQLite DB) 안전하지 않은 기본값이면 경고한다."""
+    if settings.database_url.startswith("sqlite"):
+        return
+    if settings.admin_password == "change-me":
+        warnings.warn("ADMIN_PASSWORD 가 기본값입니다. 배포에선 반드시 바꾸세요.", stacklevel=2)
+    if not settings.cookie_secure:
+        log.warning("COOKIE_SECURE=false — HTTPS 배포에선 true 여야 세션 쿠키가 안전합니다.")
+    if settings.cookie_samesite == "none" and not settings.cookie_secure:
+        log.warning("COOKIE_SAMESITE=none 은 COOKIE_SECURE=true 와 함께 써야 합니다.")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 스키마 관리는 Alembic 이 담당한다. 배포/개발 모두 서버 기동 전에
     #   alembic upgrade head
     # 를 실행한다. (로컬 시드는 `python -m app.seed` 가 create_all 로 처리)
+    _check_prod_config()
     yield
 
 

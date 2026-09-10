@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     youtube_api_key: str = ""
     session_ttl_days: int = 7
     cookie_secure: bool = False  # HTTPS 프로덕션에선 true
+    cookie_samesite: str = "lax"  # 프론트·API 가 다른 도메인이면 "none" (+ cookie_secure=true)
     database_url: str = "sqlite:///./tentracks.db"
     cors_origins: str = ""  # 쉼표로 구분
 

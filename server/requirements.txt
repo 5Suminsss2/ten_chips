@@ -4,3 +4,4 @@ sqlmodel>=0.0.22
 pydantic-settings>=2.5
 httpx>=0.27
 alembic>=1.13
+psycopg[binary]>=3.2   # Postgres 드라이버 (DATABASE_URL 이 postgresql+psycopg://... 일 때만 사용)

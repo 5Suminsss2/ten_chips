@@ -101,11 +101,15 @@ server/
     seed.py      데모 데이터 주입
 ```
 
-## 다음 단계 (5단계 · 운영 준비)
+## 5단계 · 운영 준비
 
 - ~~**3단계** 프론트 날짜 모델을 인덱스 → `YYYY-MM-DD` 로 (월 이동 UI)~~ ✓
 - ~~**4단계** 유튜브 검색을 서버로 (`/api/youtube/search`), 클라 API 키 제거~~ ✓
 - ~~Alembic 도입 (`create_all` → 마이그레이션)~~ ✓
 - ~~로그인 rate-limit (실패 N회 잠금)~~ ✓
-- SQLite → Postgres (`DATABASE_URL` 교체 + psycopg)
-- 배포 (`COOKIE_SECURE=true`, 비밀번호·API키 secret), DB 백업
+- ~~Postgres 지원 (`DATABASE_URL=postgresql+psycopg://...`, `psycopg[binary]`, 풀 옵션)~~ ✓
+- 실제 배포 — **[DEPLOY.md](DEPLOY.md)** 참고 (release 커맨드 `alembic upgrade head`,
+  secret, `COOKIE_SECURE`/`COOKIE_SAMESITE`/`TRUST_PROXY`, 프론트 `/api` 리라이트, DB 백업)
+
+로컬은 그대로 SQLite. Postgres 로 바꾸려면 `DATABASE_URL` 만 교체하고
+`alembic upgrade head` 를 다시 돌리면 된다 (`env.py`·`db.py` 가 URL 스킴에 맞춰 동작).
