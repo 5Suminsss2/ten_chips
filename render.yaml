@@ -1,0 +1,59 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Render 대시보드에서 "New +" → "Blueprint" → 이 레포 연결 → 브랜치 선택하면
+# 아래 3개(Postgres 1 + 웹 서비스 2)를 한 번에 만든다.
+# 배포 후 tentracks-api 의 ADMIN_PASSWORD(그리고 쓸 거면 YOUTUBE_API_KEY)를
+# 대시보드에서 직접 채워야 한다 (sync: false).
+
+databases:
+  - name: tentracks-db
+    plan: free            # 무료 Postgres — 생성 후 약 30일이면 만료된다. 계속 쓰려면 유료(basic-256mb 등)
+    databaseName: tentracks
+    user: tentracks
+
+services:
+  # ---------- 백엔드 (FastAPI) ----------
+  - type: web
+    name: tentracks-api
+    runtime: python
+    plan: free            # 무료: 15분 미사용 시 잠들고 다음 요청에서 콜드스타트(~1분)
+    rootDir: server
+    buildCommand: pip install -r requirements.txt && alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.6"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tentracks-db
+          property: connectionString   # postgresql://... (config.py 가 +psycopg 로 정규화)
+      - key: ADMIN_PASSWORD
+        sync: false                    # 대시보드에서 강한 값으로 직접 입력
+      - key: YOUTUBE_API_KEY
+        sync: false                    # 유튜브 자동 검색 쓸 때만
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: TRUST_PROXY
+        value: "true"
+      - key: COOKIE_SAMESITE
+        value: "lax"                   # 프론트가 /api 를 리라이트하므로 브라우저엔 같은 오리진
+      - key: SESSION_TTL_DAYS
+        value: "7"
+
+  # ---------- 프론트 (vinext, Node) ----------
+  - type: web
+    name: tentracks-web
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: npm ci && npx vinext build
+    startCommand: npx vinext start --port $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: "22.13.0"
+      # next.config.ts 의 /api 리라이트 대상. 이 값은 **빌드 때** 굳어지므로
+      # (vinext 가 dist 에 박아넣음) 백엔드 공개 URL 을 그대로 적는다.
+      # 위 tentracks-api 의 이름을 바꾸면 이 URL 도 같이 바꾸고 프론트를 재배포할 것.
+      - key: BACKEND_URL
+        value: https://tentracks-api.onrender.com

@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +19,19 @@ class Settings(BaseSettings):
     login_max_attempts: int = 5
     login_lockout_minutes: int = 15
     trust_proxy: bool = False
+
+    @field_validator("database_url")
+    @classmethod
+    def _normalize_db_url(cls, v: str) -> str:
+        """호스트가 주는 postgres://... / postgresql://... 를 psycopg 드라이버로 고정한다.
+
+        SQLAlchemy 는 스킴에 드라이버가 없으면 psycopg2 를 찾는데, 우리는 psycopg(3)만 깐다.
+        """
+        if v.startswith("postgres://"):
+            v = "postgresql://" + v[len("postgres://") :]
+        if v.startswith("postgresql://"):
+            v = "postgresql+psycopg://" + v[len("postgresql://") :]
+        return v
 
     @property
     def cors_origin_list(self) -> list[str]:
