@@ -9,7 +9,7 @@ from datetime import date
 
 from sqlmodel import Session
 
-from .db import engine, init_db
+from .db import create_all, engine
 from .models import Box, Track
 
 DEMO = [
@@ -45,7 +45,7 @@ DEMO = [
 
 
 def run() -> None:
-    init_db()
+    create_all()  # 로컬 편의 — 운영은 `alembic upgrade head`
     today = date.today().isoformat()
     with Session(engine) as session:
         if session.get(Box, today) is not None:

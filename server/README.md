@@ -1,6 +1,6 @@
 # TEN TRACKS API (server)
 
-FastAPI + SQLModel + SQLite 백엔드. **2단계: 공개 조회 + 관리자 인증·쓰기.**
+FastAPI + SQLModel + SQLite 백엔드. 공개 조회 · 관리자 인증/쓰기 · 유튜브 검색 프록시.
 
 ## 실행
 
@@ -11,9 +11,27 @@ python -m venv .venv
 pip install -r requirements.txt
 
 copy .env.example .env            # macOS/Linux: cp .env.example .env
-python -m app.seed                # 오늘 날짜에 데모 4곡 넣기
+alembic upgrade head              # 스키마 생성/최신화 (기동 전 항상)
+python -m app.seed                # 오늘 날짜에 데모 4곡 넣기 (선택)
 uvicorn app.main:app --reload --port 8000
 ```
+
+이미 `create_all` 로 만든 기존 `tentracks.db` 가 있으면, 한 번만 현재 리비전으로 표시:
+
+```bash
+alembic stamp head
+```
+
+### 마이그레이션
+
+```bash
+alembic revision --autogenerate -m "설명"   # 모델 변경 후 새 리비전
+alembic upgrade head                        # 적용
+alembic downgrade -1                        # 한 단계 되돌리기
+```
+
+`alembic/env.py` 가 `app.config.settings.database_url` 과 `SQLModel.metadata` 를 읽으므로,
+DB URL 은 `alembic.ini` 가 아니라 `server/.env` 에서 온다. SQLite 는 batch 모드(ALTER 제약)로 처리된다.
 
 - API 문서(자동): http://localhost:8000/docs
 - 헬스체크: http://localhost:8000/api/health
@@ -63,22 +81,30 @@ uvicorn app.main:app --reload --port 8000
 ## 구조
 
 ```
-server/app/
-  main.py        FastAPI 앱, 라우터 등록, 시작 시 테이블 생성
-  config.py      .env 로드 (pydantic-settings)
-  db.py          engine + get_session 의존성
-  models.py      SQLModel: Box · Track · AdminSession
-  schemas.py     요청/응답 모델 (camelCase) + box_out 헬퍼
-  auth.py        비밀번호 확인 · 세션 생성/파기 · require_admin 의존성
-  routers/
-    boxes.py     공개 조회
-    admin.py     세션 + 트랙리스트 쓰기
-    youtube.py   유튜브 검색 프록시 (require_admin, 키는 서버에만)
-  seed.py        데모 데이터 주입
+server/
+  alembic.ini    Alembic 설정 (DB URL 은 env.py 가 app 설정에서 채움)
+  alembic/
+    env.py       settings.database_url + SQLModel.metadata 연결
+    versions/    마이그레이션 리비전
+  app/
+    main.py      FastAPI 앱, 라우터 등록 (스키마는 Alembic 담당)
+    config.py    .env 로드 (pydantic-settings)
+    db.py        engine + get_session 의존성 (+ 로컬용 create_all)
+    models.py    SQLModel: Box · Track · AdminSession
+    schemas.py   요청/응답 모델 (camelCase) + box_out 헬퍼
+    auth.py      비밀번호 확인 · 세션 생성/파기 · require_admin 의존성
+    routers/
+      boxes.py   공개 조회
+      admin.py   세션 + 트랙리스트 쓰기
+      youtube.py 유튜브 검색 프록시 (require_admin, 키는 서버에만)
+    seed.py      데모 데이터 주입
 ```
 
-## 다음 단계
+## 다음 단계 (5단계 · 운영 준비)
 
 - ~~**3단계** 프론트 날짜 모델을 인덱스 → `YYYY-MM-DD` 로 (월 이동 UI)~~ ✓
 - ~~**4단계** 유튜브 검색을 서버로 (`/api/youtube/search`), 클라 API 키 제거~~ ✓
-- **5단계** Alembic 마이그레이션, 로그인 rate-limit, SQLite → Postgres, 배포
+- ~~Alembic 도입 (`create_all` → 마이그레이션)~~ ✓
+- 로그인 rate-limit (실패 N회 잠금)
+- SQLite → Postgres (`DATABASE_URL` 교체 + psycopg)
+- 배포 (`COOKIE_SECURE=true`, 비밀번호·API키 secret), DB 백업

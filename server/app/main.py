@@ -4,14 +4,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .db import init_db
 from .routers import admin, boxes, youtube
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 1단계: 시작할 때 테이블을 만든다. 2단계에서 Alembic 마이그레이션으로 교체.
-    init_db()
+    # 스키마 관리는 Alembic 이 담당한다. 배포/개발 모두 서버 기동 전에
+    #   alembic upgrade head
+    # 를 실행한다. (로컬 시드는 `python -m app.seed` 가 create_all 로 처리)
     yield
 
 
