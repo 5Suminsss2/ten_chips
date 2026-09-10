@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, Trash2, Search } from "lucide-react";
 import { dateLabel, monthDates, monthLabel, monthOf, shiftMonth, TRACKS_PER_BOX, type Track } from "@/app/_lib/tracks";
 import { useAdmin } from "@/app/_lib/admin-context";
-import { hasYouTubeApiKey, parseYouTubeId, searchYouTube } from "@/app/_lib/youtube-search";
+import { parseYouTubeId, searchYouTube, youtubeSearchEnabled } from "@/app/_lib/youtube-search";
 
 /* 편집 중에는 키워드를 문자열로 다루고, 저장 시 Track으로 변환한다. */
 type Row = { title: string; artist: string; keywords: string; note: string; youtubeId: string };
@@ -92,9 +92,11 @@ function DayEditor({ date }: { date: string }) {
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [searching, setSearching] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [ytEnabled, setYtEnabled] = useState(false);
   const hasSaved = (cached?.length ?? 0) > 0;
 
   useEffect(() => { ensureDay(date); }, [date, ensureDay]);
+  useEffect(() => { youtubeSearchEnabled().then(setYtEnabled); }, []);
 
   // 서버에서 이 날짜 데이터가 도착하면 폼을 한 번 채운다.
   useEffect(() => {
@@ -129,7 +131,7 @@ function DayEditor({ date }: { date: string }) {
 
   /* 곡을 입력하면(제목·아티스트가 채워지면) 영상이 없을 때 자동으로 한 번 검색 */
   const maybeAutoSearch = (idx: number) => {
-    if (!hasYouTubeApiKey() || searching !== null) return;
+    if (!ytEnabled || searching !== null) return;
     const row = rows[idx];
     if (row && row.title.trim() && row.artist.trim() && !parseYouTubeId(row.youtubeId)) runSearch(idx);
   };
@@ -180,9 +182,9 @@ function DayEditor({ date }: { date: string }) {
         </div>
       </div>
 
-      {!hasYouTubeApiKey() && (
+      {!ytEnabled && (
         <p className="mt-3 border border-black/20 px-3 py-2 text-xs text-black/55">
-          유튜브 자동 검색이 꺼져 있어요. <code>.env</code>에 <code>VITE_YOUTUBE_API_KEY</code>를 설정하면 곡 입력 시 공식 음원 영상을 자동으로 찾아줍니다. 지금은 아래 칸에 유튜브 링크/ID를 직접 붙여넣으세요.
+          유튜브 자동 검색이 꺼져 있어요. <code>server/.env</code>에 <code>YOUTUBE_API_KEY</code>를 설정하면 곡 입력 시 공식 음원 영상을 자동으로 찾아줍니다. 지금은 아래 칸에 유튜브 링크/ID를 직접 붙여넣으세요.
         </p>
       )}
 

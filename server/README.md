@@ -38,6 +38,8 @@ uvicorn app.main:app --reload --port 8000
 | `DELETE` | `/api/admin/session` | 로그아웃 (세션 파기 + 쿠키 만료) |
 | `PUT` | `/api/admin/boxes/{date}` | `{note?, tracks:[…]}` — 트랙 전체 교체. 1~10곡, 제목 필수 |
 | `DELETE` | `/api/admin/boxes/{date}` | 그 날짜 상자 삭제. 없으면 404 |
+| `GET` | `/api/youtube/status` | `{enabled}` — 서버에 `YOUTUBE_API_KEY` 가 있는지 |
+| `GET` | `/api/youtube/search?title=&artist=` | 공식 음원 영상 1건 `{videoId, title, channel, thumbnail}`. 키 없으면 503 |
 
 응답 예 (`GET /api/boxes/{date}`):
 ```json
@@ -71,11 +73,12 @@ server/app/
   routers/
     boxes.py     공개 조회
     admin.py     세션 + 트랙리스트 쓰기
+    youtube.py   유튜브 검색 프록시 (require_admin, 키는 서버에만)
   seed.py        데모 데이터 주입
 ```
 
 ## 다음 단계
 
-- **3단계** 프론트 날짜 모델을 인덱스 → `YYYY-MM-DD` 로 (월 이동 UI)
-- **4단계** 유튜브 검색을 서버로 (`/api/youtube/search`), 클라 `VITE_YOUTUBE_API_KEY` 제거
+- ~~**3단계** 프론트 날짜 모델을 인덱스 → `YYYY-MM-DD` 로 (월 이동 UI)~~ ✓
+- ~~**4단계** 유튜브 검색을 서버로 (`/api/youtube/search`), 클라 API 키 제거~~ ✓
 - **5단계** Alembic 마이그레이션, 로그인 rate-limit, SQLite → Postgres, 배포

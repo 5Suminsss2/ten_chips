@@ -1,48 +1,37 @@
 /**
- * 유튜브 Data API v3로 "공식 음원" 영상을 한 건 찾는다.
+ * 유튜브 "공식 음원" 영상 한 건을 찾는다.
  *
- * 사용하려면 프로젝트 루트 `.env` 에 API 키를 넣어야 한다:
- *   VITE_YOUTUBE_API_KEY=발급받은_키
- * (Google Cloud Console → YouTube Data API v3 사용 설정 → API 키 발급)
- * 키가 없으면 검색은 비활성화되고, 관리자 화면에서 유튜브 링크/ID를 직접 붙여넣을 수 있다.
+ * 4단계부터 검색은 서버가 대신한다 — API 키는 `server/.env` 의 `YOUTUBE_API_KEY` 에만 있고
+ * 클라이언트 번들에는 들어가지 않는다. 이 엔드포인트는 관리자 세션 쿠키가 있어야 호출된다.
  */
-
-const API_KEY = (import.meta as unknown as { env?: Record<string, string | undefined> }).env?.VITE_YOUTUBE_API_KEY;
 
 export type YtHit = { videoId: string; title: string; channel: string; thumbnail: string };
 
-export function hasYouTubeApiKey(): boolean {
-  return Boolean(API_KEY);
+let enabledPromise: Promise<boolean> | null = null;
+
+/** 서버에 유튜브 API 키가 설정돼 자동 검색을 켤 수 있는지. 한 번만 조회하고 캐시한다. */
+export function youtubeSearchEnabled(): Promise<boolean> {
+  if (!enabledPromise) {
+    enabledPromise = fetch("/api/youtube/status", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : { enabled: false }))
+      .then((d: { enabled?: boolean }) => Boolean(d.enabled))
+      .catch(() => false);
+  }
+  return enabledPromise;
 }
 
 export async function searchYouTube(title: string, artist: string): Promise<YtHit> {
-  if (!API_KEY) throw new Error("유튜브 API 키가 없습니다. .env 에 VITE_YOUTUBE_API_KEY 를 설정하세요.");
+  const qs = new URLSearchParams({ title });
+  if (artist.trim()) qs.set("artist", artist);
 
-  const q = `${artist} ${title} official audio`.trim();
-  const url = new URL("https://www.googleapis.com/youtube/v3/search");
-  url.searchParams.set("part", "snippet");
-  url.searchParams.set("q", q);
-  url.searchParams.set("type", "video");
-  url.searchParams.set("maxResults", "1");
-  url.searchParams.set("key", API_KEY);
-
-  const res = await fetch(url.toString());
+  const res = await fetch(`/api/youtube/search?${qs}`, { credentials: "same-origin" });
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
-    throw new Error(body?.error?.message || `유튜브 검색 실패 (${res.status})`);
+    const body = (await res.json().catch(() => null)) as { detail?: string } | null;
+    throw new Error(body?.detail || `유튜브 검색 실패 (${res.status})`);
   }
-  const data = (await res.json()) as {
-    items?: { id?: { videoId?: string }; snippet?: { title: string; channelTitle: string; thumbnails?: Record<string, { url: string }> } }[];
-  };
-  const item = data.items?.[0];
-  if (!item?.id?.videoId || !item.snippet) throw new Error("검색 결과가 없습니다.");
-  const s = item.snippet;
-  return {
-    videoId: item.id.videoId,
-    title: s.title,
-    channel: s.channelTitle,
-    thumbnail: s.thumbnails?.medium?.url || s.thumbnails?.default?.url || "",
-  };
+  const d = (await res.json()) as Partial<YtHit>;
+  if (!d.videoId) throw new Error("검색 결과가 없습니다.");
+  return { videoId: d.videoId, title: d.title ?? "", channel: d.channel ?? "", thumbnail: d.thumbnail ?? "" };
 }
 
 /* watch?v=ID · youtu.be/ID · embed/ID · shorts/ID · 또는 11자리 ID 그대로 → ID만 추출 */
