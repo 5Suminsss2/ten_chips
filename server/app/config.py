@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./tentracks.db"
     cors_origins: str = ""  # 쉼표로 구분
 
+    # 로그인 rate-limit — IP 기준. 배포가 프록시 뒤면 trust_proxy=true 로.
+    login_max_attempts: int = 5
+    login_lockout_minutes: int = 15
+    trust_proxy: bool = False
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

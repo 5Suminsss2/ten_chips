@@ -13,6 +13,7 @@ from ..auth import (
 from ..config import settings
 from ..db import get_session
 from ..models import Box, Track, utcnow
+from ..ratelimit import client_ip, lock_seconds, register_failure, register_success
 from ..schemas import BoxIn, BoxOut, LoginIn, box_out
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -25,10 +26,30 @@ _DATE = r"^\d{4}-\d{2}-\d{2}$"
 
 @router.post("/session")
 def login(
-    body: LoginIn, response: Response, db: Session = Depends(get_session)
+    body: LoginIn,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_session),
 ) -> dict[str, bool]:
+    ip = client_ip(request)
+    locked = lock_seconds(ip)
+    if locked:
+        raise HTTPException(
+            status_code=429,
+            detail=f"로그인 시도가 많아 잠겼습니다. {locked}초 후 다시 시도하세요.",
+            headers={"Retry-After": str(locked)},
+        )
     if not check_password(body.password):
-        raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
+        locked = register_failure(ip)
+        detail = "비밀번호가 올바르지 않습니다."
+        if locked:
+            raise HTTPException(
+                status_code=429,
+                detail=f"{detail} 시도가 많아 {locked}초 동안 잠겼습니다.",
+                headers={"Retry-After": str(locked)},
+            )
+        raise HTTPException(status_code=401, detail=detail)
+    register_success(ip)
     sid, max_age = create_session(db)
     response.set_cookie(
         COOKIE_NAME,

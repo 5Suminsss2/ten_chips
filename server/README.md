@@ -51,7 +51,7 @@ DB URL 은 `alembic.ini` 가 아니라 `server/.env` 에서 온다. SQLite 는 b
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
-| `POST` | `/api/admin/session` | `{password}` → 쿠키 발급. 틀리면 401 |
+| `POST` | `/api/admin/session` | `{password}` → 쿠키 발급. 틀리면 401. 같은 IP 가 `LOGIN_MAX_ATTEMPTS` 회 실패하면 `LOGIN_LOCKOUT_MINUTES` 분 429 (`Retry-After`) |
 | `GET` | `/api/admin/session` | 로그인 상태 (200 / 401) |
 | `DELETE` | `/api/admin/session` | 로그아웃 (세션 파기 + 쿠키 만료) |
 | `PUT` | `/api/admin/boxes/{date}` | `{note?, tracks:[…]}` — 트랙 전체 교체. 1~10곡, 제목 필수 |
@@ -93,6 +93,7 @@ server/
     models.py    SQLModel: Box · Track · AdminSession
     schemas.py   요청/응답 모델 (camelCase) + box_out 헬퍼
     auth.py      비밀번호 확인 · 세션 생성/파기 · require_admin 의존성
+    ratelimit.py 로그인 실패 잠금 (IP 기준, 인메모리 — 단일 인스턴스 가정)
     routers/
       boxes.py   공개 조회
       admin.py   세션 + 트랙리스트 쓰기
@@ -105,6 +106,6 @@ server/
 - ~~**3단계** 프론트 날짜 모델을 인덱스 → `YYYY-MM-DD` 로 (월 이동 UI)~~ ✓
 - ~~**4단계** 유튜브 검색을 서버로 (`/api/youtube/search`), 클라 API 키 제거~~ ✓
 - ~~Alembic 도입 (`create_all` → 마이그레이션)~~ ✓
-- 로그인 rate-limit (실패 N회 잠금)
+- ~~로그인 rate-limit (실패 N회 잠금)~~ ✓
 - SQLite → Postgres (`DATABASE_URL` 교체 + psycopg)
 - 배포 (`COOKIE_SECURE=true`, 비밀번호·API키 secret), DB 백업
