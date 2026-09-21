@@ -54,10 +54,22 @@ DB URL 은 `alembic.ini` 가 아니라 `server/.env` 에서 온다. SQLite 는 b
 | `POST` | `/api/admin/session` | `{password}` → 쿠키 발급. 틀리면 401. 같은 IP 가 `LOGIN_MAX_ATTEMPTS` 회 실패하면 `LOGIN_LOCKOUT_MINUTES` 분 429 (`Retry-After`) |
 | `GET` | `/api/admin/session` | 로그인 상태 (200 / 401) |
 | `DELETE` | `/api/admin/session` | 로그아웃 (세션 파기 + 쿠키 만료) |
-| `PUT` | `/api/admin/boxes/{date}` | `{note?, tracks:[…]}` — 트랙 전체 교체. 1~10곡, 제목 필수 |
+| `GET` | `/api/admin/boxes/{date}` | 그 날짜 상자 — **초안(비공개)도 그대로** 보여준다. 없으면 404 |
+| `GET` | `/api/admin/boxes?from=&to=` | 기간 내 모든 상자 `[{date, trackCount, published}]` — 초안 포함 |
+| `PUT` | `/api/admin/boxes/{date}` | `{note?, published?, tracks:[…]}` — 트랙 전체 교체. 1~10곡, 제목 필수. `published` 생략 시 `true`(공개) |
 | `DELETE` | `/api/admin/boxes/{date}` | 그 날짜 상자 삭제. 없으면 404 |
 | `GET` | `/api/youtube/status` | `{enabled}` — 서버에 `YOUTUBE_API_KEY` 가 있는지 |
 | `GET` | `/api/youtube/search?title=&artist=` | 공식 음원 영상 1건 `{videoId, title, channel, thumbnail}`. 키 없으면 503 |
+
+### 자동화 (`X-Automation-Token` 헤더, 관리자 세션과 무관)
+
+매일 자정 예약 에이전트가 트랙리스트 초안을 등록할 때만 쓰는 최소 권한 경로. 로그인·발행·삭제
+권한은 없다 — 자세한 설명은 **[DEPLOY.md § 5](DEPLOY.md#5-매일-자동-초안-등록)** 참고.
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| `POST` | `/api/automation/boxes/{date}` | 그 날짜에 상자가 **전혀 없을 때만** 초안(`published=false`)으로 생성. 이미 있으면(초안이든 발행본이든) 409 |
+| `GET` | `/api/automation/youtube-search?title=&artist=` | `/api/youtube/search` 와 동일한 검색, 자동화 토큰으로 |
 
 응답 예 (`GET /api/boxes/{date}`):
 ```json
@@ -95,9 +107,10 @@ server/
     auth.py      비밀번호 확인 · 세션 생성/파기 · require_admin 의존성
     ratelimit.py 로그인 실패 잠금 (IP 기준, 인메모리 — 단일 인스턴스 가정)
     routers/
-      boxes.py   공개 조회
-      admin.py   세션 + 트랙리스트 쓰기
-      youtube.py 유튜브 검색 프록시 (require_admin, 키는 서버에만)
+      boxes.py      공개 조회
+      admin.py      세션 + 트랙리스트 쓰기 (초안 포함 조회)
+      youtube.py    유튜브 검색 프록시 (require_admin, 키는 서버에만)
+      automation.py 예약 에이전트 전용 — 빈 날짜에만 초안 생성 (require_automation)
     seed.py      데모 데이터 주입
 ```
 
