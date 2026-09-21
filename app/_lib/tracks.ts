@@ -15,8 +15,13 @@ export const tracks: Track[] = [
   { title: "The Quiet Market", artist: "Nala Sinephro", tags: ["JAZZ", "AMBIENT"], note: "서두르지 않는 소리 사이에서 오늘 놓쳤던 여백을 발견해 보세요.", youtubeId: "" },
 ];
 
-/* 상자 심볼 기본 풀 — 한 달 길이만큼 순환해서 사용한다 */
-const SYMBOL_POOL = ["leaf", "mountain", "moon", "house", "tree", "cat", "globe", "bird", "flower", "wave"];
+/* 상자에 찍히는 기호 — 그달의 일자(1일 → 0) 순으로 하나씩. 31가지 모두 다르다. */
+const DAY_GLYPHS = [
+  "❧", "△", "◐", "⌂", "♠", "♣", "◎", "⌁", "✤", "≋",
+  "✦", "◈", "✧", "◇", "✩", "⬡", "✪", "⊙", "✬", "▽",
+  "✱", "◧", "✳", "⊚", "✵", "❀", "◉", "❂", "✽", "❖",
+  "✺",
+];
 
 export const boxTracklist: { title: string; artist: string }[] = [
   { title: "La Llorona", artist: "Lila Downs" },
@@ -79,8 +84,8 @@ export const monthRange = (ym: string): [string, string] => {
   return [dates[0], dates[dates.length - 1]];
 };
 
-/* 날짜별 심볼 — 일(1일 → 0)을 기준으로 기본 풀을 순환한다 */
-export const symbolFor = (iso: string) => SYMBOL_POOL[(dayOfMonth(iso) - 1) % SYMBOL_POOL.length];
+/* 'YYYY-MM-DD' → 그날의 기호 (1~31일 각각 다른 기호) */
+export const symbolFor = (iso: string) => DAY_GLYPHS[(dayOfMonth(iso) - 1) % DAY_GLYPHS.length];
 
 /* 자동 생성 트랙리스트 — 일자를 회전 오프셋으로 삼는다 */
 export const tracklistFor = (iso: string) => {
