@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import admin, boxes, youtube
+from .routers import admin, automation, boxes, youtube
 
 log = logging.getLogger("uvicorn.error")
 
@@ -48,6 +48,7 @@ if settings.cors_origin_list:
 app.include_router(boxes.router)
 app.include_router(admin.router)
 app.include_router(youtube.router)
+app.include_router(automation.router)
 
 
 @app.get("/api/health", tags=["meta"])

@@ -27,13 +27,12 @@ def status(_: None = Depends(require_admin)) -> YtStatus:
     return YtStatus(enabled=bool(settings.youtube_api_key))
 
 
-@router.get("/search", response_model=YtHit)
-async def search(
-    title: str = Query(min_length=1),
-    artist: str = Query(default=""),
-    _: None = Depends(require_admin),
-) -> YtHit:
-    """제목+아티스트로 '공식 음원' 영상을 한 건 찾는다. 키는 서버 .env 에만 있다."""
+async def search_video(title: str, artist: str = "") -> YtHit:
+    """제목+아티스트로 '공식 음원' 영상을 한 건 찾는다. 키는 서버 .env 에만 있다.
+
+    /api/youtube/search(관리자 세션)와 /api/automation/youtube-search(자동화 토큰)가
+    함께 쓰는 공용 로직.
+    """
     if not settings.youtube_api_key:
         raise HTTPException(
             status_code=503, detail="유튜브 API 키가 서버에 설정되지 않았습니다."
@@ -73,3 +72,12 @@ async def search(
         channel=snippet.get("channelTitle", ""),
         thumbnail=thumb,
     )
+
+
+@router.get("/search", response_model=YtHit)
+async def search(
+    title: str = Query(min_length=1),
+    artist: str = Query(default=""),
+    _: None = Depends(require_admin),
+) -> YtHit:
+    return await search_video(title, artist)

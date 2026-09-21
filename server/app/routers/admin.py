@@ -1,7 +1,7 @@
 import json
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request, Response
-from sqlmodel import Session, delete, select
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
+from sqlmodel import Session, col, delete, func, select
 
 from ..auth import (
     COOKIE_NAME,
@@ -14,7 +14,7 @@ from ..config import settings
 from ..db import get_session
 from ..models import Box, Track, utcnow
 from ..ratelimit import client_ip, lock_seconds, register_failure, register_success
-from ..schemas import BoxIn, BoxOut, LoginIn, box_out
+from ..schemas import BoxIn, BoxOut, BoxSummary, LoginIn, box_out
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -77,6 +77,50 @@ def logout(
     return {"ok": True}
 
 
+# ---------- 트랙리스트 읽기 (초안 포함) ----------
+
+
+@router.get("/boxes/{date}", response_model=BoxOut)
+def get_box_admin(
+    date: str = Path(pattern=_DATE),
+    db: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+) -> BoxOut:
+    """관리자용 — 비공개(초안) 상자도 그대로 보여준다."""
+    box = db.get(Box, date)
+    if box is None:
+        raise HTTPException(status_code=404, detail="해당 날짜의 상자가 없습니다.")
+
+    tracks = db.exec(
+        select(Track).where(Track.box_date == date).order_by(Track.position)
+    ).all()
+    return box_out(box.date, box.note, tracks, box.published)
+
+
+@router.get("/boxes", response_model=list[BoxSummary])
+def list_boxes_admin(
+    date_from: str = Query(alias="from", pattern=_DATE),
+    date_to: str = Query(alias="to", pattern=_DATE),
+    db: Session = Depends(get_session),
+    _: None = Depends(require_admin),
+) -> list[BoxSummary]:
+    """관리자용 캘린더 — 초안(published=false)도 포함해 기간 내 모든 상자를 보여준다."""
+    counts = dict(
+        db.exec(
+            select(Track.box_date, func.count())
+            .where(col(Track.box_date).between(date_from, date_to))
+            .group_by(Track.box_date)
+        ).all()
+    )
+    boxes = db.exec(
+        select(Box).where(col(Box.date).between(date_from, date_to)).order_by(Box.date)
+    ).all()
+    return [
+        BoxSummary(date=b.date, track_count=counts.get(b.date, 0), published=b.published)
+        for b in boxes
+    ]
+
+
 # ---------- 트랙리스트 쓰기 ----------
 
 
@@ -97,7 +141,7 @@ def put_box(
         box = Box(date=date)
         db.add(box)
     box.note = body.note.strip()
-    box.published = True
+    box.published = body.published
     box.updated_at = utcnow()
 
     # 해당 날짜의 트랙을 전부 지우고 새로 넣는다 (전체 교체).
@@ -120,7 +164,7 @@ def put_box(
     tracks = db.exec(
         select(Track).where(Track.box_date == date).order_by(Track.position)
     ).all()
-    return box_out(date, box.note, tracks)
+    return box_out(date, box.note, tracks, box.published)
 
 
 @router.delete("/boxes/{date}")

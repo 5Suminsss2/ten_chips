@@ -23,7 +23,7 @@ def get_box(
     tracks = session.exec(
         select(Track).where(Track.box_date == date).order_by(Track.position)
     ).all()
-    return box_out(box.date, box.note, tracks)
+    return box_out(box.date, box.note, tracks, box.published)
 
 
 @router.get("", response_model=list[BoxSummary])
@@ -45,4 +45,4 @@ def list_boxes(
         .where(col(Box.date).between(date_from, date_to), Box.published == True)  # noqa: E712
         .order_by(Box.date)
     ).all()
-    return [BoxSummary(date=b.date, track_count=counts.get(b.date, 0)) for b in boxes]
+    return [BoxSummary(date=b.date, track_count=counts.get(b.date, 0), published=True) for b in boxes]

@@ -25,12 +25,14 @@ class TrackOut(CamelModel):
 class BoxOut(CamelModel):
     date: str
     note: str
+    published: bool
     tracks: list[TrackOut]
 
 
 class BoxSummary(CamelModel):
     date: str
     track_count: int  # → "trackCount"
+    published: bool
 
 
 # ---------- 입력 ----------
@@ -50,6 +52,7 @@ class TrackIn(CamelModel):
 
 class BoxIn(CamelModel):
     note: str = ""
+    published: bool = True
     tracks: list[TrackIn]
 
 
@@ -64,11 +67,12 @@ def parse_tags(raw: str) -> list[str]:
     return [str(x) for x in value] if isinstance(value, list) else []
 
 
-def box_out(date: str, note: str, tracks: list) -> BoxOut:
+def box_out(date: str, note: str, tracks: list, published: bool = True) -> BoxOut:
     """Track ORM 행 목록 → BoxOut 응답."""
     return BoxOut(
         date=date,
         note=note,
+        published=published,
         tracks=[
             TrackOut(
                 position=t.position,

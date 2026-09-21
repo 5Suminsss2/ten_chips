@@ -9,6 +9,7 @@ class Settings(BaseSettings):
 
     admin_password: str = "change-me"
     youtube_api_key: str = ""
+    automation_token: str = ""  # 매일 자동 초안 등록용 전용 토큰. 비어 있으면 자동화 라우트는 항상 401
     session_ttl_days: int = 7
     cookie_secure: bool = False  # HTTPS 프로덕션에선 true
     cookie_samesite: str = "lax"  # 프론트·API 가 다른 도메인이면 "none" (+ cookie_secure=true)

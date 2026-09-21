@@ -47,3 +47,15 @@ def require_admin(request: Request, db: Session = Depends(get_session)) -> None:
     """관리자 전용 라우트 의존성. 쿠키의 세션이 유효하지 않으면 401."""
     if not _is_valid(db, request.cookies.get(COOKIE_NAME)):
         raise HTTPException(status_code=401, detail="관리자 로그인이 필요합니다.")
+
+
+def require_automation(request: Request) -> None:
+    """자동 등록(예약 에이전트) 전용 라우트 의존성.
+
+    관리자 세션과 무관한 별도 토큰 — 로그인/발행/삭제 권한은 전혀 없고,
+    /api/automation/* 라우트만 통과시킨다. 토큰이 서버에 설정돼 있지 않으면
+    (기본값 "") 항상 거부한다.
+    """
+    token = request.headers.get("X-Automation-Token", "")
+    if not settings.automation_token or not secrets.compare_digest(token, settings.automation_token):
+        raise HTTPException(status_code=401, detail="유효한 자동화 토큰이 필요합니다.")

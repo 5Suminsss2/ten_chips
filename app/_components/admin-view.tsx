@@ -32,11 +32,11 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 export function AdminView({ initialDate, onClose }: { initialDate: string; onClose: () => void }) {
-  const { monthCounts, ensureMonth } = useAdmin();
+  const { adminMonthStatus, ensureAdminMonth } = useAdmin();
   const [date, setDate] = useState(initialDate);
   const [ym, setYm] = useState(monthOf(initialDate));
 
-  useEffect(() => { ensureMonth(ym); }, [ym, ensureMonth]);
+  useEffect(() => { ensureAdminMonth(ym); }, [ym, ensureAdminMonth]);
 
   const changeMonth = (next: string) => {
     setYm(next);
@@ -64,16 +64,25 @@ export function AdminView({ initialDate, onClose }: { initialDate: string; onClo
 
       <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
         {monthDates(ym).map((d) => {
-          const count = monthCounts[d] ?? 0;
+          const status = adminMonthStatus[d];
+          const count = status?.count ?? 0;
+          const isDraft = count > 0 && status?.published === false;
           const activeDay = d === date;
+          const label = count === 0 ? "미등록" : isDraft ? "초안 · 검토 필요" : `${count}곡 등록`;
           return (
             <button
               key={d}
               onClick={() => setDate(d)}
-              className={`flex shrink-0 flex-col items-start border px-3 py-2 transition ${activeDay ? "border-[#b5121b] bg-[#b5121b] text-white" : "border-black/20 bg-[#faf8f2] hover:bg-black/5"}`}
+              className={`flex shrink-0 flex-col items-start border px-3 py-2 transition ${
+                activeDay
+                  ? "border-[#b5121b] bg-[#b5121b] text-white"
+                  : isDraft
+                    ? "border-[#b5121b]/50 bg-[#fdf1e8] hover:bg-[#fbe6d5]"
+                    : "border-black/20 bg-[#faf8f2] hover:bg-black/5"
+              }`}
             >
               <span className="brand text-lg leading-none">{dateLabel(d)}</span>
-              <span className="mt-1 text-[10px] font-bold uppercase tracking-[.12em] opacity-80">{count ? `${count}곡 등록` : "미등록"}</span>
+              <span className="mt-1 text-[10px] font-bold uppercase tracking-[.12em] opacity-80">{label}</span>
             </button>
           );
         })}
@@ -85,24 +94,25 @@ export function AdminView({ initialDate, onClose }: { initialDate: string; onClo
 }
 
 function DayEditor({ date }: { date: string }) {
-  const { getDay, ensureDay, saveDay, clearDay } = useAdmin();
-  const cached = getDay(date); // Track[] | null | undefined
+  const { getAdminDay, ensureAdminDay, saveDay, clearDay } = useAdmin();
+  const cached = getAdminDay(date); // AdminDay | null | undefined
   const [rows, setRows] = useState<Row[]>([emptyRow()]);
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
   const [searching, setSearching] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [ytEnabled, setYtEnabled] = useState(false);
-  const hasSaved = (cached?.length ?? 0) > 0;
+  const hasSaved = (cached?.tracks.length ?? 0) > 0;
+  const isDraft = hasSaved && cached?.published === false;
 
-  useEffect(() => { ensureDay(date); }, [date, ensureDay]);
+  useEffect(() => { ensureAdminDay(date); }, [date, ensureAdminDay]);
   useEffect(() => { youtubeSearchEnabled().then(setYtEnabled); }, []);
 
   // 서버에서 이 날짜 데이터가 도착하면 폼을 한 번 채운다.
   useEffect(() => {
     if (ready || cached === undefined) return;
     /* eslint-disable-next-line react-hooks/set-state-in-effect -- 서버 로드 후 1회 초기화 */
-    setRows(cached && cached.length ? cached.map(toRow) : [emptyRow()]);
+    setRows(cached && cached.tracks.length ? cached.tracks.map(toRow) : [emptyRow()]);
     setReady(true);
   }, [cached, ready]);
 
@@ -181,6 +191,12 @@ function DayEditor({ date }: { date: string }) {
           </button>
         </div>
       </div>
+
+      {isDraft && (
+        <p className="mt-3 border border-[#b5121b]/40 bg-[#fdf1e8] px-3 py-2 text-xs font-semibold text-[#8a3a12]">
+          🤖 예약 에이전트가 자동으로 등록한 초안이에요 — 아직 공개되지 않았어요. 내용을 확인하고 필요하면 고친 뒤 "저장"을 누르면 공개됩니다. 마음에 안 들면 "이 날짜 비우기"로 지우세요.
+        </p>
+      )}
 
       {!ytEnabled && (
         <p className="mt-3 border border-black/20 px-3 py-2 text-xs text-black/55">

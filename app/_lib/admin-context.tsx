@@ -5,8 +5,12 @@ import { currentMonth, monthRange, tracklistFor, type Track } from "@/app/_lib/t
 
 /* ---------- 서버 응답/요청 형태 ---------- */
 type ApiTrack = { position: number; title: string; artist: string; note: string; youtubeId: string | null; tags: string[] };
-type ApiBox = { date: string; note: string; tracks: ApiTrack[] };
-type BoxSummary = { date: string; trackCount: number };
+type ApiBox = { date: string; note: string; published: boolean; tracks: ApiTrack[] };
+type BoxSummary = { date: string; trackCount: number; published: boolean };
+
+/* 관리자 화면 전용 — 예약 에이전트가 만든 초안(published=false)도 함께 보여준다 */
+export type AdminDay = { tracks: Track[]; published: boolean };
+export type AdminDayStatus = { count: number; published: boolean };
 
 const toTrack = (t: ApiTrack): Track => ({
   title: t.title,
@@ -36,6 +40,11 @@ type AdminValue = {
   ensureDay: (date: string) => void; // 미로드면 fetch 트리거
   saveDay: (date: string, list: Track[]) => Promise<SaveResult>;
   clearDay: (date: string) => Promise<void>;
+  /* 관리자 전용 — 초안(비공개) 포함 조회. 예약 에이전트가 등록한 초안을 검토할 때 쓴다 */
+  adminMonthStatus: Record<string, AdminDayStatus>;
+  ensureAdminMonth: (ym: string) => void;
+  getAdminDay: (date: string) => AdminDay | null | undefined;
+  ensureAdminDay: (date: string) => void;
 };
 
 const AdminContext = createContext<AdminValue | null>(null);
@@ -66,15 +75,60 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [authReady, setAuthReady] = useState(false);
   const [monthCounts, setMonthCounts] = useState<Record<string, number>>({});
   const [dayCache, setDayCache] = useState<Record<string, Track[] | null>>({});
+  const [adminMonthStatus, setAdminMonthStatus] = useState<Record<string, AdminDayStatus>>({});
+  const [adminDayCache, setAdminDayCache] = useState<Record<string, AdminDay | null>>({});
 
   const loadedRef = useRef<Set<string>>(new Set());
   const inflightRef = useRef<Set<string>>(new Set());
   const monthsRef = useRef<Set<string>>(new Set());
+  const adminLoadedRef = useRef<Set<string>>(new Set());
+  const adminInflightRef = useRef<Set<string>>(new Set());
+  const adminMonthsRef = useRef<Set<string>>(new Set());
 
   const cacheDay = useCallback((date: string, tracks: Track[] | null) => {
     loadedRef.current.add(date);
     setDayCache((c) => ({ ...c, [date]: tracks }));
   }, []);
+
+  const cacheAdminDay = useCallback((date: string, day: AdminDay | null) => {
+    adminLoadedRef.current.add(date);
+    setAdminDayCache((c) => ({ ...c, [date]: day }));
+  }, []);
+
+  const ensureAdminMonth = useCallback((ym: string) => {
+    if (adminMonthsRef.current.has(ym)) return;
+    adminMonthsRef.current.add(ym);
+    const [from, to] = monthRange(ym);
+    fetch(`/api/admin/boxes?from=${from}&to=${to}`, { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((rows: BoxSummary[]) => {
+        setAdminMonthStatus((m) => {
+          const next = { ...m };
+          for (const row of rows) next[row.date] = { count: row.trackCount, published: row.published };
+          return next;
+        });
+      })
+      .catch(() => {
+        adminMonthsRef.current.delete(ym); // 실패하면 다시 시도할 수 있게
+      });
+  }, []);
+
+  const ensureAdminDay = useCallback(
+    (date: string) => {
+      if (adminLoadedRef.current.has(date) || adminInflightRef.current.has(date)) return;
+      adminInflightRef.current.add(date);
+      fetch(`/api/admin/boxes/${date}`, { credentials: "same-origin" })
+        .then((r) => (r.ok ? r.json() : r.status === 404 ? Promise.resolve(null) : Promise.reject(r)))
+        .then((box: ApiBox | null) =>
+          cacheAdminDay(date, box ? { tracks: box.tracks.map(toTrack), published: box.published } : null),
+        )
+        .catch(() => cacheAdminDay(date, null))
+        .finally(() => adminInflightRef.current.delete(date));
+    },
+    [cacheAdminDay],
+  );
+
+  const getAdminDay = useCallback((date: string) => adminDayCache[date], [adminDayCache]);
 
   const ensureMonth = useCallback((ym: string) => {
     if (monthsRef.current.has(ym)) return;
@@ -162,12 +216,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         const tracks = box.tracks.map(toTrack);
         cacheDay(date, tracks);
         setMonthCounts((m) => ({ ...m, [date]: tracks.length }));
+        cacheAdminDay(date, { tracks, published: box.published });
+        setAdminMonthStatus((m) => ({ ...m, [date]: { count: tracks.length, published: box.published } }));
         return { ok: true, msg: `트랙리스트를 저장했어요. (${tracks.length}곡)` };
       } catch {
         return { ok: false, msg: "서버에 연결하지 못했습니다." };
       }
     },
-    [cacheDay],
+    [cacheDay, cacheAdminDay],
   );
 
   const clearDay = useCallback(
@@ -183,13 +239,34 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         delete next[date];
         return next;
       });
+      cacheAdminDay(date, null);
+      setAdminMonthStatus((m) => {
+        const next = { ...m };
+        delete next[date];
+        return next;
+      });
     },
-    [cacheDay],
+    [cacheDay, cacheAdminDay],
   );
 
   return (
     <AdminContext.Provider
-      value={{ isAdmin, authReady, signIn, signOut, monthCounts, ensureMonth, getDay, ensureDay, saveDay, clearDay }}
+      value={{
+        isAdmin,
+        authReady,
+        signIn,
+        signOut,
+        monthCounts,
+        ensureMonth,
+        getDay,
+        ensureDay,
+        saveDay,
+        clearDay,
+        adminMonthStatus,
+        ensureAdminMonth,
+        getAdminDay,
+        ensureAdminDay,
+      }}
     >
       {children}
     </AdminContext.Provider>

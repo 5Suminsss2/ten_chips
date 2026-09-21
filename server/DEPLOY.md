@@ -47,6 +47,7 @@ TEN TRACKS 는 **프론트(vinext/Node) + 백엔드(FastAPI) + Postgres** 세 �
 |---|---|
 | `ADMIN_PASSWORD` | 강한 비밀번호 (관리자 로그인에 쓸 값). 기본 `change-me` 면 로그에 경고가 뜬다 |
 | `YOUTUBE_API_KEY` | 유튜브 자동 검색을 쓸 때만. [YouTube Data API v3](https://console.cloud.google.com/apis/library/youtube.googleapis.com) 키. 안 쓰면 비워둠 |
+| `AUTOMATION_TOKEN` | 매일 자동으로 트랙리스트 초안을 등록하는 예약 에이전트 전용 토큰. 랜덤 문자열(예: `openssl rand -hex 32`)을 넣고, 예약(루틴) 설정의 `X-Automation-Token` 헤더 값과 맞춘다. 안 쓰면 비워둠 — `/api/automation/*` 라우트가 전부 401 |
 
 입력 후 `tentracks-api` 를 **Manual Deploy → Deploy latest commit** 로 다시 배포.
 
@@ -98,6 +99,21 @@ TEN TRACKS 는 **프론트(vinext/Node) + 백엔드(FastAPI) + Postgres** 세 �
 
   Render **Cron Job** 서비스로 하루 1회, 또는 GitHub Actions 스케줄로.
 - 분기에 한 번, 백업을 빈 DB 에 복원해 실제로 되는지 확인한다.
+
+---
+
+## 5. 매일 자동 초안 등록
+
+`POST /api/automation/boxes/{date}` — 그 날짜에 상자가 **전혀 없을 때만** 초안
+(`published=false`)으로 하나 만든다. 이미 사람이 만든 상자(초안이든 발행본이든)가
+있으면 409를 돌려주고 절대 덮어쓰지 않는다. `X-Automation-Token` 헤더가
+`AUTOMATION_TOKEN`과 일치해야 하고, 로그인·발행·삭제 권한은 전혀 없다 — 최소 권한.
+
+곡의 유튜브 영상은 `GET /api/automation/youtube-search?title=&artist=` (같은 토큰)로
+찾을 수 있다. `YOUTUBE_API_KEY`가 없으면 503 — 그 경우 `youtubeId` 없이 등록해도 된다.
+
+관리자는 ADMIN 화면에서 날짜를 열면 초안 여부가 보이고, 검토 후 "저장"을 누르면
+그때 `published=true`로 바뀌어 공개된다.
 
 ---
 

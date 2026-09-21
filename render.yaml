@@ -32,6 +32,8 @@ services:
         sync: false                    # 대시보드에서 강한 값으로 직접 입력
       - key: YOUTUBE_API_KEY
         sync: false                    # 유튜브 자동 검색 쓸 때만
+      - key: AUTOMATION_TOKEN
+        sync: false                    # 매일 자동 초안 등록(예약 에이전트) 전용 토큰. 안 쓰면 비워둠
       - key: COOKIE_SECURE
         value: "true"
       - key: TRUST_PROXY
