@@ -23,19 +23,6 @@ const DAY_GLYPHS = [
   "✺",
 ];
 
-export const boxTracklist: { title: string; artist: string }[] = [
-  { title: "La Llorona", artist: "Lila Downs" },
-  { title: "Sunset in Accra", artist: "Ebo Taylor" },
-  { title: "Paper Moon", artist: "Mondo Grosso" },
-  { title: "The Quiet Market", artist: "Nala Sinephro" },
-  { title: "Midnight Market", artist: "Khruangbin" },
-  { title: "Third Culture", artist: "Sault" },
-  { title: "Neon Prayer", artist: "Men I Trust" },
-  { title: "Salt Flats", artist: "Floating Points" },
-  { title: "Kintsugi", artist: "Hania Rani" },
-  { title: "The Same Sky", artist: "Nils Frahm" },
-];
-
 export const TRACKS_PER_BOX = 10;
 
 const MONTHS_SHORT = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
@@ -86,12 +73,6 @@ export const monthRange = (ym: string): [string, string] => {
 
 /* 'YYYY-MM-DD' → 그날의 기호 (1~31일 각각 다른 기호) */
 export const symbolFor = (iso: string) => DAY_GLYPHS[(dayOfMonth(iso) - 1) % DAY_GLYPHS.length];
-
-/* 자동 생성 트랙리스트 — 일자를 회전 오프셋으로 삼는다 */
-export const tracklistFor = (iso: string) => {
-  const off = dayOfMonth(iso) - 1;
-  return boxTracklist.map((_, i) => boxTracklist[(i + off) % boxTracklist.length]);
-};
 
 /* "07 SEP" 형태 */
 export const dateLabel = (iso: string) => `${iso.slice(8, 10)} ${MONTHS_SHORT[Number(iso.slice(5, 7)) - 1]}`;

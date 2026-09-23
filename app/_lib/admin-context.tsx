@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { currentMonth, monthRange, tracklistFor, type Track } from "@/app/_lib/tracks";
+import { currentMonth, monthRange, type Track } from "@/app/_lib/tracks";
 
 /* ---------- 서버 응답/요청 형태 ---------- */
 type ApiTrack = { position: number; title: string; artist: string; note: string; youtubeId: string | null; tags: string[] };
@@ -59,15 +59,12 @@ export const useAdmin = () => {
 export const resolveDayTracks = (dayTracks: Track[] | null | undefined): Track[] | null =>
   dayTracks && dayTracks.length ? dayTracks : null;
 
-/* 상자 스파인에 표시할 목록(제목·아티스트) — 등록본 없으면 자동 생성 목록 */
+/* 상자 스파인에 표시할 목록(제목·아티스트) — 등록본 없으면 빈 배열 */
 export const tracklistEntries = (
   dayTracks: Track[] | null | undefined,
-  date: string,
 ): { title: string; artist: string }[] => {
-  if (dayTracks && dayTracks.length) {
-    return dayTracks.map((t) => ({ title: t.title.trim() || "(제목 미정)", artist: t.artist.trim() || "미상" }));
-  }
-  return tracklistFor(date);
+  if (!dayTracks || !dayTracks.length) return [];
+  return dayTracks.map((t) => ({ title: t.title.trim() || "(제목 미정)", artist: t.artist.trim() || "미상" }));
 };
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
