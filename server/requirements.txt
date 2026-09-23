@@ -1,6 +1,6 @@
 fastapi>=0.115
 uvicorn[standard]>=0.32
-sqlmodel>=0.0.22
+sqlmodel==0.0.46  # 버전 고정 — 배포마다 새로 설치되는데, 상위 버전이 datetime 필드 타입 검증을 바꾸면서 Postgres insert가 깨진 적 있음
 pydantic-settings>=2.5
 httpx>=0.27
 alembic>=1.13

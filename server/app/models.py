@@ -1,10 +1,13 @@
 from datetime import datetime, timezone
 
+from pydantic import NaiveDatetime
 from sqlmodel import Field, Relationship, SQLModel
 
 
 def utcnow() -> datetime:
     # SQLite 는 tz 정보를 저장하지 않으므로 비교가 어긋나지 않게 naive UTC 로 통일한다.
+    # 컬럼 타입도 naive 여야 하므로 datetime 필드는 아래에서 NaiveDatetime 으로 어노테이션한다 —
+    # 안 그러면 최신 sqlmodel 이 plain datetime 필드에 tz-aware 값을 요구해서 Postgres 에서 insert 가 터진다.
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
@@ -14,7 +17,7 @@ class Box(SQLModel, table=True):
     date: str = Field(primary_key=True)  # 'YYYY-MM-DD'
     note: str = ""
     published: bool = True  # False 면 공개 조회에서 숨김
-    updated_at: datetime = Field(default_factory=utcnow)
+    updated_at: NaiveDatetime = Field(default_factory=utcnow)
 
     tracks: list["Track"] = Relationship(
         back_populates="box",
@@ -44,5 +47,5 @@ class AdminSession(SQLModel, table=True):
     """관리자 로그인 세션. id 를 HttpOnly 쿠키에 담는다."""
 
     id: str = Field(primary_key=True)  # secrets.token_hex(32)
-    created_at: datetime = Field(default_factory=utcnow)
-    expires_at: datetime
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
+    expires_at: NaiveDatetime
