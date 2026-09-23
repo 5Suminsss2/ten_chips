@@ -17,8 +17,11 @@ class Settings(BaseSettings):
     cors_origins: str = ""  # 쉼표로 구분
 
     # 로그인 rate-limit — IP 기준. 배포가 프록시 뒤면 trust_proxy=true 로.
-    login_max_attempts: int = 5
-    login_lockout_minutes: int = 15
+    # 프록시를 여러 겹 거치는 배포(프론트 서비스가 /api 를 백엔드로 리라이트하는 구성 등)에서는
+    # X-Forwarded-For 가 실제 방문자 IP 대신 중간 홉의 IP로 뭉뚱그려질 수 있다 — 그러면 아무 방문자의
+    # 로그인 실패가 관리자 본인의 시도까지 잠가버린다. 잠금 시간을 짧게 둬서 오탐이어도 금방 풀리게 한다.
+    login_max_attempts: int = 8
+    login_lockout_minutes: int = 3
     trust_proxy: bool = False
 
     @field_validator("database_url")

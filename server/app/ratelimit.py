@@ -7,6 +7,7 @@
 여러 인스턴스면 Redis 같은 공유 저장소로 바꿔야 한다.
 """
 
+import logging
 import math
 import threading
 import time
@@ -14,6 +15,8 @@ import time
 from fastapi import Request
 
 from .config import settings
+
+logger = logging.getLogger("tentracks.ratelimit")
 
 _lock = threading.Lock()
 # ip -> [실패 횟수, 잠금 해제 epoch(초). 0 이면 잠기지 않음]
@@ -25,7 +28,10 @@ def client_ip(request: Request) -> str:
     if settings.trust_proxy:
         fwd = request.headers.get("x-forwarded-for")
         if fwd:
-            return fwd.split(",")[0].strip()
+            ip = fwd.split(",")[0].strip()
+            logger.info("client_ip resolved=%s from x-forwarded-for=%r", ip, fwd)
+            return ip
+        logger.warning("trust_proxy=true but request has no x-forwarded-for header")
     return request.client.host if request.client else "unknown"
 
 
@@ -46,7 +52,9 @@ def lock_seconds(ip: str) -> int:
             return 0
         fails, until = entry
         if until and until > now:
-            return math.ceil(until - now)
+            remaining = math.ceil(until - now)
+            logger.warning("login blocked: ip=%s locked, %ss remaining", ip, remaining)
+            return remaining
         if until and until <= now:
             _state.pop(ip, None)  # 잠금 만료 → 깨끗이
         return 0
@@ -64,8 +72,10 @@ def register_failure(ip: str) -> int:
         if fails >= settings.login_max_attempts:
             until = now + settings.login_lockout_minutes * 60
             _state[ip] = [fails, until]
+            logger.warning("login lockout triggered: ip=%s fails=%d locked_for=%ds", ip, fails, settings.login_lockout_minutes * 60)
             return math.ceil(until - now)
         _state[ip] = [fails, until]
+        logger.info("login failure recorded: ip=%s fails=%d/%d", ip, fails, settings.login_max_attempts)
         return 0
 
 
